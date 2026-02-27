@@ -1,0 +1,423 @@
+{
+  "info": {
+    "name": "QLSX - Quản Lý Sản Xuất API",
+    "description": "API Collection cho hệ thống Quản lý Sản xuất và Công nhân\n\nAI EBIKE - BLUERA",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:7000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "        console.log('Token saved!');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CN001\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "        console.log('Admin Token saved!');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"ADMIN\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CN999\",\n  \"name\": \"Test User\",\n  \"password\": \"123456\",\n  \"phone\": \"0901234567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Users (Admin)",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users"]
+            }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CN100\",\n  \"name\": \"New Worker\",\n  \"password\": \"123456\",\n  \"role\": \"worker\",\n  \"department\": \"Xưởng 1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Vehicle Types",
+      "item": [
+        {
+          "name": "Get All Vehicle Types",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/vehicle-types",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicle-types"]
+            }
+          }
+        },
+        {
+          "name": "Create Vehicle Type",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"AIE MS2\",\n  \"code\": \"MS2\",\n  \"description\": \"Xe điện AIE MS2\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vehicle-types",
+              "host": ["{{baseUrl}}"],
+              "path": ["vehicle-types"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Processes",
+      "item": [
+        {
+          "name": "Get All Processes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/processes",
+              "host": ["{{baseUrl}}"],
+              "path": ["processes"]
+            }
+          }
+        },
+        {
+          "name": "Create Process",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Process\",\n  \"code\": \"TP001\",\n  \"order\": 99,\n  \"description\": \"Test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/processes",
+              "host": ["{{baseUrl}}"],
+              "path": ["processes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 Operations",
+      "item": [
+        {
+          "name": "Get All Operations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/operations",
+              "host": ["{{baseUrl}}"],
+              "path": ["operations"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Production Orders",
+      "item": [
+        {
+          "name": "Get All Production Orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Order",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", "active"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Production Standards",
+      "item": [
+        {
+          "name": "Get All Standards",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-standards",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-standards"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Registrations",
+      "item": [
+        {
+          "name": "Get Today Registrations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/registrations/today",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", "today"]
+            }
+          }
+        },
+        {
+          "name": "Get Current Order",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/registrations/current-order",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", "current-order"]
+            }
+          }
+        },
+        {
+          "name": "Get All Registrations (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/registrations/admin/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", "admin", "all"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⏰ Shifts",
+      "item": [
+        {
+          "name": "Start Shift",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/shifts/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["shifts", "start"]
+            }
+          }
+        },
+        {
+          "name": "End Shift",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/shifts/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["shifts", "end"]
+            }
+          }
+        },
+        {
+          "name": "Get Current Shift",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/shifts/current",
+              "host": ["{{baseUrl}}"],
+              "path": ["shifts", "current"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📈 Reports",
+      "item": [
+        {
+          "name": "Get Shift Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/shift-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "shift-summary"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Settings",
+      "item": [
+        {
+          "name": "Get Bonus Rules",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/settings/bonus-rules",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings", "bonus-rules"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
