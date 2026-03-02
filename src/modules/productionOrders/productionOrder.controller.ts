@@ -482,6 +482,29 @@ export const getProgress = async (
         ),
       ];
 
+      // Chi tiết registrations cho popup xem chi tiết
+      const registrationDetails = processRegs.map((r) => {
+        const u = r.userId as unknown as { name?: string; code?: string };
+        const op = r.operationId as unknown as { name?: string; code?: string };
+        return {
+          _id: r._id,
+          worker: { name: u?.name, code: u?.code },
+          operation: { name: op?.name, code: op?.code },
+          status: r.status,
+          expectedQuantity: r.expectedQuantity,
+          actualQuantity: r.actualQuantity,
+          deviation: r.deviation,
+          workingMinutes: r.workingMinutes || 0,
+          interruptionMinutes: r.interruptionMinutes || 0,
+          interruptionNote: r.interruptionNote || "",
+          checkInTime: r.checkInTime,
+          checkOutTime: r.checkOutTime,
+          bonusAmount: r.bonusAmount || 0,
+          penaltyAmount: r.penaltyAmount || 0,
+          date: r.date,
+        };
+      });
+
       return {
         processId: process._id,
         processName: process.name,
@@ -498,6 +521,7 @@ export const getProgress = async (
               : "pending",
         workers,
         registrations: processRegs.length,
+        registrationDetails,
       };
     });
 
