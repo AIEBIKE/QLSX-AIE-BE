@@ -11,7 +11,10 @@
     "seed": "ts-node src/seed.ts",
     "seed:prod": "node seed-production.js",
     "seed:full": "ts-node seed-full.ts",
-    "seed:aiems1": "ts-node seed-aiems1.ts"
+    "seed:aiems1": "ts-node seed-aiems1.ts",
+    "start:prod": "pm2 start dist/app.js --name aiebike-api",
+    "restart:prod": "pm2 restart aiebike-api",
+    "stop:prod": "pm2 stop aiebike-api"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
