@@ -209,13 +209,6 @@ export const login = async (
       factory: factory,
     };
 
-    res.cookie("user", JSON.stringify(userData), {
-      httpOnly: false, // Frontend cần đọc thông tin user
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
     // Trả về response
     res.json({
       success: true,
