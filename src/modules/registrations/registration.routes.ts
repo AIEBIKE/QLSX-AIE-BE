@@ -8,6 +8,7 @@ router.get("/current-order", auth, controller.getCurrentOrder);
 router.get("/today", auth, controller.getToday);
 router.post("/", auth, controller.create);
 router.put("/:id/complete", auth, controller.complete);
+router.post("/:id/reassign", auth, controller.reassign); // Thêm route reassign
 router.delete("/:id", auth, controller.remove);
 
 router.get("/admin/all", auth, adminOnly, controller.adminGetAll);

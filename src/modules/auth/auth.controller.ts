@@ -7,7 +7,14 @@
 
 import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import User from "./user.model";
+import mongoose from "mongoose";
+import Account from "./account.model";
+import Admin from "../admins/admin.model";
+import Supervisor from "../supervisors/supervisor.model";
+import FactoryManager from "../facManagers/facManager.model";
+import Worker from "../workers/worker.model";
+import Factory from "../factories/factory.model";
+import Role from "../roles/role.model";
 import PasswordResetToken from "./passwordResetToken.model";
 import config from "../../config/env";
 import { sendPasswordResetEmail, sendWelcomeEmail } from "../../config/email";
@@ -23,19 +30,24 @@ import { AuthRequest } from "../../types";
  */
 const generateNextCode = async (role: string): Promise<string> => {
   const prefixMap: Record<string, string> = {
+    WORKER: "CN",
+    FAC_MANAGER: "QL", // Changed from GS to QL for Factory Manager
+    SUPERVISOR: "GS",
+    ADMIN: "AD",
     worker: "CN",
     supervisor: "GS",
     admin: "AD",
+    fac_manager: "QL", // Added for consistency
   };
   const prefix = prefixMap[role] || "CN";
 
-  // Tìm mã lớn nhất hiện tại
+  // Tìm mã lớn nhất hiện tại trong bảng Account
   const regex = new RegExp(`^${prefix}(\\d+)$`);
-  const users = await User.find({ code: regex }).select("code");
+  const accounts = await Account.find({ code: regex }).select("code");
 
   let maxNum = 0;
-  users.forEach((u) => {
-    const match = u.code.match(regex);
+  accounts.forEach((acc) => {
+    const match = acc.code.match(regex);
     if (match) {
       const num = parseInt(match[1], 10);
       if (num > maxNum) maxNum = num;
@@ -57,7 +69,7 @@ export const getNextCode = async (
 ): Promise<void> => {
   try {
     const role = req.params.role as string;
-    const validRoles = ["worker", "supervisor", "admin"];
+    const validRoles = ["worker", "supervisor", "admin", "fac_manager"]; // Added fac_manager
 
     if (!validRoles.includes(role)) {
       res.status(400).json({
@@ -100,10 +112,13 @@ export const login = async (
       return;
     }
 
-    // Tìm user theo code
-    const user = await User.findOne({ code }).select("+password");
+    // Tìm account theo code
+    const account = await Account.findOne({ code })
+      .select("+password")
+      .populate("roleId")
+      .populate("profileId");
 
-    if (!user) {
+    if (!account) {
       res.status(401).json({
         success: false,
         error: {
@@ -115,7 +130,7 @@ export const login = async (
     }
 
     // Kiểm tra trạng thái active
-    if (!user.active) {
+    if (!account.active) {
       res.status(401).json({
         success: false,
         error: { code: "INACTIVE", message: "Tài khoản đã bị vô hiệu hóa" },
@@ -124,7 +139,7 @@ export const login = async (
     }
 
     // Kiểm tra trạng thái duyệt tài khoản
-    if (user.status === "pending") {
+    if (account.status === "pending") {
       res.status(401).json({
         success: false,
         error: {
@@ -136,7 +151,7 @@ export const login = async (
       return;
     }
 
-    if (user.status === "rejected") {
+    if (account.status === "rejected") {
       res.status(401).json({
         success: false,
         error: {
@@ -148,7 +163,7 @@ export const login = async (
     }
 
     // So sánh mật khẩu
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await account.comparePassword(password);
 
     if (!isMatch) {
       res.status(401).json({
@@ -163,23 +178,50 @@ export const login = async (
 
     // Tạo JWT token
     const expiresIn = config.jwtExpiresIn || "7d";
-    const token = jwt.sign({ id: user._id.toString() }, config.jwtSecret, {
+    const token = jwt.sign({ id: account._id.toString() }, config.jwtSecret, {
       expiresIn,
     } as jwt.SignOptions);
+
+    const profile = account.profileId as any;
+
+    let factory = null;
+    const factoryId = profile?.factoryId || profile?.factory_belong_to;
+    if (factoryId) {
+      factory = await Factory.findById(factoryId).select("name code");
+    }
+
+    // Thiết lập Cookies
+    res.cookie("token", token, {
+      httpOnly: true, // Không thể truy cập qua JavaScript (chống XSS)
+      secure: process.env.NODE_ENV === "production", // Chỉ gửi qua HTTPS ở môi trường production
+      sameSite: "lax", // Bảo vệ CSRF
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    const userData = {
+      id: account._id,
+      name: profile?.name,
+      code: account.code,
+      email: account.email,
+      roleId: account.roleId,
+      roleCode: (account.roleId as any)?.code,
+      profile: profile,
+      factory: factory,
+    };
+
+    res.cookie("user", JSON.stringify(userData), {
+      httpOnly: false, // Frontend cần đọc thông tin user
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     // Trả về response
     res.json({
       success: true,
       data: {
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          code: user.code,
-          email: user.email,
-          role: user.role,
-          department: user.department,
-        },
+        token, // Vẫn trả về token ở body để tương thích tạm thời nếu cần
+        user: userData,
       },
     });
   } catch (error) {
@@ -199,7 +241,7 @@ export const register = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { name, code, email, password, department, role } = req.body;
+    const { name, code, email, password, role } = req.body;
 
     // Validate input
     if (!name || !password) {
@@ -226,17 +268,26 @@ export const register = async (
     }
 
     // Validate role
-    const validRoles = ["worker", "supervisor", "admin"];
-    const selectedRole = role && validRoles.includes(role) ? role : "worker";
+    const roles = await Role.find();
+    let selectedRoleId = roles.find(r => r.code === "WORKER")?._id;
+    let selectedRoleCode = "WORKER";
+
+    if (role) {
+      const foundRole = roles.find(r => r.code === role || r.code.toLowerCase() === role.toLowerCase());
+      if (foundRole) {
+        selectedRoleId = foundRole._id;
+        selectedRoleCode = foundRole.code;
+      }
+    }
 
     // Nếu không truyền code, tự động tạo mã
     let employeeCode = code;
     if (!employeeCode) {
-      employeeCode = await generateNextCode(selectedRole);
+      employeeCode = await generateNextCode(selectedRoleCode);
     } else {
       // Kiểm tra code đã tồn tại
-      const existingUser = await User.findOne({ code: employeeCode });
-      if (existingUser) {
+      const existingAccount = await Account.findOne({ code: employeeCode });
+      if (existingAccount) {
         res.status(400).json({
           success: false,
           error: {
@@ -250,7 +301,7 @@ export const register = async (
 
     // Kiểm tra email đã tồn tại (nếu có)
     if (email) {
-      const existingEmail = await User.findOne({ email });
+      const existingEmail = await Account.findOne({ email });
       if (existingEmail) {
         res.status(400).json({
           success: false,
@@ -263,17 +314,41 @@ export const register = async (
       }
     }
 
-    // Tạo user mới với status = pending (chờ duyệt)
-    const user = await User.create({
-      name,
+    // Xác định profile model
+    let profileModel: "Admin" | "Supervisor" | "Worker" | "FactoryManager" = "Worker";
+    let ModelToUse: any = Worker;
+    const profileData: any = { name };
+
+    const roleCode = selectedRoleCode.toUpperCase();
+    if (roleCode === "ADMIN") {
+      profileModel = "Admin";
+      ModelToUse = Admin;
+    } else if (roleCode === "SUPERVISOR") {
+      profileModel = "Supervisor";
+      ModelToUse = Supervisor;
+    } else if (roleCode === "FAC_MANAGER") {
+      profileModel = "FactoryManager";
+      ModelToUse = FactoryManager;
+    }
+
+    // Tạo profile mới
+    const profile = await ModelToUse.create(profileData);
+
+    // Tạo account mới với status = pending (chờ duyệt)
+    const account = await Account.create({
       code: employeeCode,
       email,
       password,
-      department: department || "",
-      role: selectedRole,
+      roleId: selectedRoleId,
+      profileId: profile._id,
+      profileModel: profileModel,
       active: true,
       status: "pending", // Chờ admin duyệt
     });
+
+    // Cập nhật accountId cho profile
+    profile.accountId = account._id;
+    await profile.save();
 
     // Gửi email thông báo (nếu có email)
     if (email) {
@@ -286,13 +361,12 @@ export const register = async (
       message: "Đăng ký thành công! Tài khoản của bạn đang chờ admin duyệt.",
       data: {
         user: {
-          id: user._id,
-          name: user.name,
-          code: user.code,
-          email: user.email,
-          role: user.role,
-          department: user.department,
-          status: user.status,
+          id: account._id,
+          name: profile.name,
+          code: account.code,
+          email: account.email,
+          roleId: account.roleId,
+          status: account.status,
         },
       },
     });
@@ -326,11 +400,11 @@ export const forgotPassword = async (
       return;
     }
 
-    // Tìm user theo email
-    const user = await User.findOne({ email });
+    // Tìm account theo email
+    const account = await Account.findOne({ email });
 
     // Luôn trả về success để không lộ thông tin user tồn tại
-    if (!user) {
+    if (!account) {
       res.json({
         success: true,
         message:
@@ -340,13 +414,17 @@ export const forgotPassword = async (
     }
 
     // Tạo reset token
-    const resetToken = await PasswordResetToken.createToken(user._id);
+    const resetToken = await PasswordResetToken.createToken(account._id);
+
+    // Lấy thông tin profile để lấy tên
+    const profileCollection = account.profileModel.toLowerCase() + "s";
+    const profile = await mongoose.connection.db.collection(profileCollection).findOne({ _id: account.profileId });
 
     // Gửi email
     const emailSent = await sendPasswordResetEmail(
       email,
       resetToken,
-      user.name,
+      profile?.name || account.code,
     );
 
     if (!emailSent) {
@@ -414,23 +492,23 @@ export const resetPassword = async (
       return;
     }
 
-    // Tìm user
-    const user = await User.findById(tokenDoc.userId).select("+password");
+    // Tìm account
+    const account = await Account.findById(tokenDoc.userId).select("+password");
 
-    if (!user) {
+    if (!account) {
       res.status(400).json({
         success: false,
         error: {
-          code: "USER_NOT_FOUND",
-          message: "Không tìm thấy người dùng",
+          code: "ACCOUNT_NOT_FOUND",
+          message: "Không tìm thấy tài khoản",
         },
       });
       return;
     }
 
     // Cập nhật mật khẩu
-    user.password = password;
-    await user.save();
+    account.password = password;
+    await account.save();
 
     // Đánh dấu token đã sử dụng
     tokenDoc.used = true;
@@ -457,26 +535,37 @@ export const getMe = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const user = await User.findById(req.user?._id);
+    const account = await Account.findById(req.user?._id).populate("roleId").populate("profileId");
 
-    if (!user) {
+    if (!account) {
       res.status(404).json({
         success: false,
-        error: { code: "NOT_FOUND", message: "User không tồn tại" },
+        error: { code: "NOT_FOUND", message: "Tài khoản không tồn tại" },
       });
       return;
+    }
+
+    const profile = account.profileId as any;
+    let factory = null;
+
+    // Fetch factory name if user belongs to one
+    const factoryId = profile?.factoryId || profile?.factory_belong_to;
+    if (factoryId) {
+      factory = await Factory.findById(factoryId).select("name code");
     }
 
     res.json({
       success: true,
       data: {
-        id: user._id,
-        name: user.name,
-        code: user.code,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        active: user.active,
+        id: account._id,
+        name: profile?.name,
+        code: account.code,
+        email: account.email,
+        roleId: account.roleId,
+        roleCode: (account.roleId as any)?.code,
+        profile: profile,
+        factory: factory,
+        active: account.active,
       },
     });
   } catch (error) {
@@ -494,6 +583,10 @@ export const logout = async (
   req: AuthRequest,
   res: Response,
 ): Promise<void> => {
+  // Clear Cookies
+  res.clearCookie("token");
+  res.clearCookie("user");
+
   res.json({
     success: true,
     message: "Đăng xuất thành công",
@@ -513,7 +606,7 @@ export const updateProfile = async (
 ): Promise<void> => {
   try {
     const userId = req.user?._id;
-    const { name, email, department } = req.body;
+    const { name, email, dateOfBirth, citizenId, address, factory_belong_to, factoryId } = req.body;
 
     if (!name || name.trim().length === 0) {
       res.status(400).json({
@@ -525,7 +618,7 @@ export const updateProfile = async (
 
     // Kiểm tra email trùng (nếu có thay đổi)
     if (email) {
-      const existingEmail = await User.findOne({
+      const existingEmail = await Account.findOne({
         email,
         _id: { $ne: userId },
       });
@@ -538,34 +631,61 @@ export const updateProfile = async (
       }
     }
 
-    const user = await User.findByIdAndUpdate(
+    // 1. Cập nhật Account (email)
+    const account = await Account.findByIdAndUpdate(
       userId,
-      {
-        name: name.trim(),
-        email: email?.trim() || "",
-        department: department?.trim() || "",
-      },
-      { new: true },
-    );
+      { email: email?.trim() || "" },
+      { new: true }
+    ).populate("roleId");
 
-    if (!user) {
+    if (!account) {
       res.status(404).json({
         success: false,
-        error: { code: "NOT_FOUND", message: "User không tồn tại" },
+        error: { code: "NOT_FOUND", message: "Tài khoản không tồn tại" },
       });
       return;
     }
+
+    // 2. Cập nhật Profile tương ứng
+    const profileModel = account.profileModel;
+    let ProfileModelToUse: any;
+    let updateData: any = {
+      name: name.trim(),
+      dateOfBirth,
+      citizenId,
+      address
+    };
+
+    if (profileModel === "Admin") {
+      ProfileModelToUse = Admin;
+    } else if (profileModel === "FactoryManager") {
+      ProfileModelToUse = FactoryManager;
+      if (factory_belong_to !== undefined) updateData.factory_belong_to = factory_belong_to;
+    } else if (profileModel === "Supervisor") {
+      ProfileModelToUse = Supervisor;
+      if (factory_belong_to !== undefined) updateData.factory_belong_to = factory_belong_to;
+    } else {
+      ProfileModelToUse = Worker;
+      if (factoryId !== undefined) updateData.factoryId = factoryId;
+    }
+
+    const profile = await ProfileModelToUse.findOneAndUpdate(
+      { accountId: userId },
+      updateData,
+      { new: true }
+    );
 
     res.json({
       success: true,
       message: "Cập nhật thông tin thành công",
       data: {
-        id: user._id,
-        name: user.name,
-        code: user.code,
-        email: user.email,
-        role: user.role,
-        department: user.department,
+        id: account._id,
+        name: profile?.name,
+        code: account.code,
+        email: account.email,
+        roleId: account.roleId,
+        roleCode: (account.roleId as any)?.code,
+        profile: profile,
       },
     });
   } catch (error) {
@@ -610,17 +730,17 @@ export const changePassword = async (
       return;
     }
 
-    const user = await User.findById(userId).select("+password");
-    if (!user) {
+    const account = await Account.findById(userId).select("+password");
+    if (!account) {
       res.status(404).json({
         success: false,
-        error: { code: "NOT_FOUND", message: "User không tồn tại" },
+        error: { code: "NOT_FOUND", message: "Tài khoản không tồn tại" },
       });
       return;
     }
 
     // Kiểm tra mật khẩu cũ
-    const isMatch = await user.comparePassword(currentPassword);
+    const isMatch = await account.comparePassword(currentPassword);
     if (!isMatch) {
       res.status(400).json({
         success: false,
@@ -632,8 +752,8 @@ export const changePassword = async (
       return;
     }
 
-    user.password = newPassword;
-    await user.save();
+    account.password = newPassword;
+    await account.save();
 
     res.json({
       success: true,

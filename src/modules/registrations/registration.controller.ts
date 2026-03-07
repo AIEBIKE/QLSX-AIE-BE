@@ -115,9 +115,32 @@ export const create = async (
 ): Promise<void> => {
   try {
     const { operationId } = req.body;
+    const workerFactoryId = req.profile?.factoryId;
 
+    // 1. Kiểm tra khung giờ đăng ký (06:30 - 17:00)
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+    const startTimeLimit = 6 * 60 + 30; // 06:30
+    const endTimeLimit = 17 * 60; // 17:00
+
+    if (currentTime < startTimeLimit || currentTime > endTimeLimit) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: "OUT_OF_TIME",
+          message:
+            "Hệ thống chỉ cho phép đăng ký từ 06:30 đến 17:00 hàng ngày.",
+        },
+      });
+      return;
+    }
+
+    // 2. Tìm lệnh sản xuất đang chạy TẠI NHÀ MÁY NÀY
     const activeOrder = await ProductionOrder.findOne({
       status: "in_progress",
+      factoryId: workerFactoryId,
     });
     if (!activeOrder) {
       res.status(400).json({
@@ -206,6 +229,7 @@ export const create = async (
     const standard = await ProductionStandard.findOne({
       vehicleTypeId: activeOrder.vehicleTypeId,
       operationId,
+      factoryId: workerFactoryId,
     });
 
     const expectedQuantity = standard ? standard.expectedQuantity : 0;
@@ -216,6 +240,7 @@ export const create = async (
       date: new Date(),
       productionOrderId: activeOrder._id,
       operationId,
+      factoryId: workerFactoryId,
       expectedQuantity,
       status: "registered",
     });
@@ -284,17 +309,13 @@ export const complete = async (
     registration.penaltyAmount = penaltyAmount;
     registration.status = "completed";
 
-    // Tính thời gian làm việc
-    const startTime = registration.checkInTime || registration.registeredAt;
-    const endTime = new Date();
-    const totalMinutes = Math.round(
-      (endTime.getTime() - startTime.getTime()) / 60000,
-    );
-    registration.workingMinutes = Math.max(
-      0,
-      totalMinutes - (interruptionMinutes || 0),
-    );
-    registration.checkOutTime = endTime;
+    // 3. Tính thời gian làm việc thực tế dựa trên định mức sản phẩm (Yêu cầu mới)
+    // actualMinutes = actualQuantity * standardTime
+    const operation = (await Operation.findById(registration.operationId)) as any;
+    const stdTime = operation?.standardTime || 0;
+    registration.workingMinutes = actualQuantity * stdTime;
+
+    registration.checkOutTime = new Date();
 
     await registration.save();
 
@@ -326,7 +347,7 @@ export const remove = async (
 
     if (
       registration.userId.toString() !== req.user?._id.toString() &&
-      req.user?.role !== "admin"
+      (req.user?.roleId as any)?.code !== "ADMIN" && (req.user?.roleId as any)?.code !== "admin"
     ) {
       res.status(403).json({
         success: false,
@@ -518,6 +539,52 @@ export const adminReassign = async (
       .populate("operationId", "name code");
 
     res.status(201).json({ success: true, data: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Supervisor: Bổ sung/Thay thế công nhân
+export const reassign = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { id } = req.params; // ID của registration cũ
+    const { newUserId, note } = req.body;
+
+    const oldReg = await DailyRegistration.findById(id);
+    if (!oldReg) {
+      res.status(404).json({ success: false, error: { message: "Không tìm thấy đăng ký cũ" } });
+      return;
+    }
+
+    // Đánh dấu bản ghi cũ là reassigned
+    oldReg.status = "reassigned";
+    await oldReg.save();
+
+    // Tính sản lượng còn lại cần thực hiện
+    const totalExpected = oldReg.adjustedExpectedQty || oldReg.expectedQuantity;
+    const completedQty = oldReg.actualQuantity || 0;
+    const remainingQty = Math.max(0, totalExpected - completedQty);
+
+    // Tạo registration mới cho công nhân mới
+    const newReg = await DailyRegistration.create({
+      userId: newUserId,
+      shiftId: oldReg.shiftId,
+      date: oldReg.date,
+      productionOrderId: oldReg.productionOrderId,
+      operationId: oldReg.operationId,
+      factoryId: oldReg.factoryId,
+      expectedQuantity: remainingQty,
+      status: "registered",
+      isReplacement: true,
+      reassignedFrom: oldReg.userId,
+      adjustmentNote: note || `Bổ sung thay thế cho công nhân nghỉ đột xuất`,
+    });
+
+    res.status(201).json({ success: true, data: newReg });
   } catch (error) {
     next(error);
   }

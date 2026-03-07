@@ -8,7 +8,7 @@
 import { Router } from "express";
 import * as controller from "./auth.controller";
 import * as userController from "./user.controller";
-import { auth, adminOnly } from "../../shared/middleware";
+import { auth, adminOnly, adminOrSupervisor } from "../../shared/middleware";
 
 const router = Router();
 
@@ -49,7 +49,7 @@ router.put("/change-password", auth, controller.changePassword);
 // Chỉ admin được truy cập
 
 // Danh sách users
-router.get("/users", auth, adminOnly, userController.getAll);
+router.get("/users", auth, adminOrSupervisor, userController.getAll);
 
 // Users đang chờ duyệt
 router.get("/users/pending", auth, adminOnly, userController.getPendingUsers);
@@ -63,13 +63,13 @@ router.get(
 );
 
 // Chi tiết user
-router.get("/users/:id", auth, adminOnly, userController.getById);
+router.get("/users/:id", auth, adminOrSupervisor, userController.getById);
 
 // Lịch sử làm việc của user
 router.get(
   "/users/:id/work-history",
   auth,
-  adminOnly,
+  adminOrSupervisor,
   userController.getWorkHistory,
 );
 
@@ -79,13 +79,13 @@ router.put("/users/:id/approve", auth, adminOnly, userController.approveUser);
 // Từ chối tài khoản
 router.put("/users/:id/reject", auth, adminOnly, userController.rejectUser);
 
-// Tạo user mới (admin tạo)
-router.post("/users", auth, adminOnly, userController.create);
+// Tạo user mới (admin/fac_manager tạo)
+router.post("/users", auth, adminOrSupervisor, userController.create);
 
 // Cập nhật user
-router.put("/users/:id", auth, adminOnly, userController.update);
+router.put("/users/:id", auth, adminOrSupervisor, userController.update);
 
 // Xóa user (soft delete)
-router.delete("/users/:id", auth, adminOnly, userController.remove);
+router.delete("/users/:id", auth, adminOrSupervisor, userController.remove);
 
 export default router;

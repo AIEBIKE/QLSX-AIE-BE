@@ -33,6 +33,13 @@ const productionOrderSchema = new Schema<IProductionOrder>(
       required: [true, "Loại xe là bắt buộc"],
     },
 
+    // Thuộc nhà máy nào
+    factoryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Factory",
+      required: [true, "Nhà máy là bắt buộc"],
+    },
+
     // Số lượng xe cần sản xuất
     quantity: {
       type: Number,

@@ -13,6 +13,7 @@
 
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import connectDB from "./config/database";
 import config from "./config/env";
 import { errorHandler } from "./shared/middleware";
@@ -46,6 +47,12 @@ import { shiftRoutes } from "./modules/shifts";
 // Reports: Báo cáo hiệu suất, thưởng phạt
 import { reportRoutes } from "./modules/reports";
 
+// Factories: Quản lý nhà máy
+import factoryRoutes from "./modules/factories/factory.routes";
+
+// Quality Control: Kiểm soát chất lượng
+import qcRoutes from "./modules/qc/qc.routes";
+
 // Settings: Cấu hình hệ thống
 import { settingsRoutes } from "./modules/settings";
 
@@ -75,6 +82,9 @@ app.use(
 // Parse JSON body
 app.use(express.json());
 
+// Parse cookies
+app.use(cookieParser());
+
 // ==================== ĐĂNG KÝ ROUTES ====================
 
 // Tất cả routes bắt đầu bằng /api
@@ -87,6 +97,8 @@ app.use("/api/production-orders", productionOrderRoutes); // Lệnh SX
 app.use("/api/registrations", registrationRoutes); // Đăng ký công việc
 app.use("/api/shifts", shiftRoutes); // Ca làm việc
 app.use("/api/reports", reportRoutes); // Báo cáo
+app.use("/api/factories", factoryRoutes); // Nhà máy
+app.use("/api/qc", qcRoutes); // Kiểm tra chất lượng
 app.use("/api/settings", settingsRoutes); // Cài đặt
 app.use("/api/worklogs", worklogRoutes); // Nhật ký
 

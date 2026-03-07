@@ -1,17 +1,16 @@
 import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import config from "../../config/env";
-import { AuthRequest, IUser } from "../../types";
+import { AuthRequest } from "../../types";
+// Lazy load Account model to prevent circular dependencies
+let Account: typeof import("../../modules/auth/account.model").default;
 
-// Lazy load User model to prevent circular dependencies
-let User: typeof import("..//../modules/auth/user.model").default;
-
-const getUser = async () => {
-  if (!User) {
-    const module = await import("../../modules/auth/user.model");
-    User = module.default;
+const getAccountModel = async () => {
+  if (!Account) {
+    const module = await import("../../modules/auth/account.model");
+    Account = module.default;
   }
-  return User;
+  return Account;
 };
 
 // JWT Authentication middleware
@@ -22,29 +21,38 @@ export const auth = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // 1. Kiểm tra header Authorization trước (cho Postman/Mobile)
+    // 2. Nếu không có thì lấy từ Cookie (Web)
+    let token;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
+
+    if (!token) {
       res.status(401).json({
         success: false,
         error: { code: "UNAUTHORIZED", message: "Không có token xác thực" },
       });
       return;
     }
-
-    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, config.jwtSecret) as { id: string };
 
-    const UserModel = await getUser();
-    const user = await UserModel.findById(decoded.id);
+    const AccountModel = await getAccountModel();
+    const account = await AccountModel.findById(decoded.id)
+      .populate("roleId")
+      .populate("profileId");
 
-    if (!user) {
+    if (!account) {
       res.status(401).json({
         success: false,
-        error: { code: "UNAUTHORIZED", message: "User không tồn tại" },
+        error: { code: "UNAUTHORIZED", message: "Tài khoản không tồn tại" },
       });
       return;
     }
 
-    if (!user.active) {
+    if (!account.active) {
       res.status(401).json({
         success: false,
         error: { code: "UNAUTHORIZED", message: "Tài khoản đã bị vô hiệu hóa" },
@@ -52,7 +60,9 @@ export const auth = async (
       return;
     }
 
-    req.user = user as IUser;
+    req.user = account;
+    // @ts-ignore - profile added in AuthRequest type
+    req.profile = account.profileId;
     next();
   } catch (error) {
     res.status(401).json({
@@ -68,7 +78,8 @@ export const adminOnly = (
   res: Response,
   next: NextFunction,
 ): void => {
-  if (req.user?.role !== "admin") {
+  const roleCode = (req.user?.roleId as any)?.code;
+  if (roleCode !== "ADMIN" && roleCode !== "admin") {
     res.status(403).json({
       success: false,
       error: { code: "FORBIDDEN", message: "Chỉ admin mới có quyền" },
@@ -84,12 +95,15 @@ export const adminOrSupervisor = (
   res: Response,
   next: NextFunction,
 ): void => {
-  if (req.user?.role !== "admin" && req.user?.role !== "supervisor") {
+  const roleCode = (req.user?.roleId as any)?.code;
+  const isAuthorized = ["ADMIN", "admin", "FAC_MANAGER", "supervisor", "SUPERVISOR"].includes(roleCode || "");
+
+  if (!isAuthorized) {
     res.status(403).json({
       success: false,
       error: {
         code: "FORBIDDEN",
-        message: "Chỉ admin hoặc supervisor mới có quyền",
+        message: "Chỉ admin hoặc quản lý/giám sát mới có quyền",
       },
     });
     return;
@@ -100,7 +114,8 @@ export const adminOrSupervisor = (
 // Role-based authorization
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (!req.user || !roles.includes(roleCode || "")) {
       res.status(403).json({
         success: false,
         error: { code: "FORBIDDEN", message: "Không có quyền truy cập" },

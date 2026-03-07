@@ -15,7 +15,6 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "supervisor", "worker"],
       default: "worker",
     },
-    department: String,
     active: { type: Boolean, default: true },
   },
   { timestamps: true },
@@ -90,7 +89,6 @@ const seedData = async () => {
         name: "Nguyễn Văn A",
         password: hashedPassword,
         role: "worker",
-        department: "Sản xuất",
         active: true,
       },
       {
@@ -98,7 +96,6 @@ const seedData = async () => {
         name: "Trần Thị B",
         password: hashedPassword,
         role: "worker",
-        department: "Sản xuất",
         active: true,
       },
       {
@@ -106,7 +103,6 @@ const seedData = async () => {
         name: "Lê Văn C",
         password: hashedPassword,
         role: "worker",
-        department: "Sản xuất",
         active: true,
       },
       {
@@ -114,7 +110,6 @@ const seedData = async () => {
         name: "Phạm Văn D",
         password: hashedPassword,
         role: "supervisor",
-        department: "Sản xuất",
         active: true,
       },
     ]);

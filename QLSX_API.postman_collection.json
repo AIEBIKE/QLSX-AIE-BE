@@ -160,7 +160,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"CN100\",\n  \"name\": \"New Worker\",\n  \"password\": \"123456\",\n  \"role\": \"worker\",\n  \"department\": \"Xưởng 1\"\n}"
+              "raw": "{\n  \"code\": \"CN100\",\n  \"name\": \"New Worker\",\n  \"password\": \"123456\",\n  \"role\": \"worker\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/users",

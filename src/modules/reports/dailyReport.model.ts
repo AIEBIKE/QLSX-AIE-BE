@@ -19,9 +19,8 @@ const dailyReportSchema = new Schema<IDailyReport>(
 
     // Công nhân
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-
-    // Ca làm việc
     shiftId: { type: Schema.Types.ObjectId, ref: "Shift", required: true },
+    factoryId: { type: Schema.Types.ObjectId, ref: "Factory", required: true },
 
     // Ngày báo cáo
     date: { type: Date, required: true },
@@ -74,6 +73,7 @@ const dailyReportSchema = new Schema<IDailyReport>(
 
 // Index: Lấy báo cáo theo user và ngày (mới nhất trước)
 dailyReportSchema.index({ userId: 1, date: -1 });
+dailyReportSchema.index({ factoryId: 1, date: -1 });
 
 // Tạo và export Model
 const DailyReport: Model<IDailyReport> = mongoose.model<IDailyReport>(

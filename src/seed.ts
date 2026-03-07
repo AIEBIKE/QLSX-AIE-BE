@@ -35,28 +35,24 @@ const seedData = async () => {
         name: "Nguyễn Văn A",
         password: "123456",
         role: "worker",
-        department: "Sản xuất",
       },
       {
         code: "CN002",
         name: "Trần Thị B",
         password: "123456",
         role: "worker",
-        department: "Sản xuất",
       },
       {
         code: "CN003",
         name: "Lê Văn C",
         password: "123456",
         role: "worker",
-        department: "Sản xuất",
       },
       {
         code: "GS001",
         name: "Phạm Văn D",
         password: "123456",
         role: "supervisor",
-        department: "Sản xuất",
       },
     ]);
     console.log("✅ Created", users.length, "users");

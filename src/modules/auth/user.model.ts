@@ -46,20 +46,31 @@ const userSchema = new Schema<IUser>(
       select: false, // Không trả về password khi query
     },
 
-    // Vai trò trong hệ thống
-    // - admin: Quản trị viên - toàn quyền
-    // - supervisor: Giám sát - quản lý công nhân
-    // - worker: Công nhân - thực hiện thao tác
+    // Vai trò trong hệ thống (Legacy string - kept for migration)
     role: {
       type: String,
-      enum: ["admin", "supervisor", "worker"],
       default: "worker",
     },
 
-    // Phòng ban / Xưởng sản xuất
-    department: {
-      type: String,
-      default: "",
+    // Link tới bảng Role mới
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: "Role",
+    },
+
+    // Thuộc nhà máy nào
+    // Admin không cần factoryId, FAC_MANAGER and Worker should have one
+    factoryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Factory",
+    },
+
+    // Nhà máy quản lý (Dành riêng cho FAC_MANAGER)
+    factories_manage: {
+      type: Schema.Types.ObjectId,
+      ref: "Factory",
+      unique: true,
+      sparse: true, // Only for FAC_MANAGERs
     },
 
     // Trạng thái hoạt động

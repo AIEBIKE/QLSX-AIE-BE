@@ -64,7 +64,6 @@ const seedFullData = async () => {
         name: "Quản trị viên",
         password: plainPassword,
         role: "admin",
-        department: "Quản lý",
         active: true,
       },
       // Supervisors
@@ -73,7 +72,6 @@ const seedFullData = async () => {
         name: "Trần Văn Giám",
         password: plainPassword,
         role: "supervisor",
-        department: "Xưởng sản xuất 1",
         active: true,
       },
       {
@@ -81,7 +79,6 @@ const seedFullData = async () => {
         name: "Lê Thị Sát",
         password: plainPassword,
         role: "supervisor",
-        department: "Xưởng sản xuất 2",
         active: true,
       },
       // Workers - Xưởng 1
@@ -90,7 +87,6 @@ const seedFullData = async () => {
         name: "Nguyễn Văn An",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 1",
         active: true,
       },
       {
@@ -98,7 +94,6 @@ const seedFullData = async () => {
         name: "Trần Thị Bình",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 1",
         active: true,
       },
       {
@@ -106,7 +101,6 @@ const seedFullData = async () => {
         name: "Lê Văn Cường",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 1",
         active: true,
       },
       {
@@ -114,7 +108,6 @@ const seedFullData = async () => {
         name: "Phạm Thị Dung",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 1",
         active: true,
       },
       {
@@ -122,7 +115,6 @@ const seedFullData = async () => {
         name: "Hoàng Văn Em",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 1",
         active: true,
       },
       // Workers - Xưởng 2
@@ -131,7 +123,6 @@ const seedFullData = async () => {
         name: "Vũ Thị Phương",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 2",
         active: true,
       },
       {
@@ -139,7 +130,6 @@ const seedFullData = async () => {
         name: "Đặng Văn Giang",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 2",
         active: true,
       },
       {
@@ -147,7 +137,6 @@ const seedFullData = async () => {
         name: "Bùi Thị Hoa",
         password: plainPassword,
         role: "worker",
-        department: "Xưởng sản xuất 2",
         active: true,
       },
     ]);

@@ -16,6 +16,13 @@ export const getAll = async (
     if (status) filter.status = status;
     if (vehicleTypeId) filter.vehicleTypeId = vehicleTypeId;
 
+    // Filter by factory for non-admins
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode !== "ADMIN" && roleCode !== "admin") {
+      // FAC_MANAGER filters by managed factory, others by assigned factory
+      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+    }
+
     const orders = await ProductionOrder.find(filter)
       .populate("vehicleTypeId", "name code")
       .populate("createdBy", "name code")
@@ -104,6 +111,11 @@ export const create = async (
     });
     const orderCode = `LSX-${year}-${String(count + 1).padStart(3, "0")}`;
 
+    const roleCode = (req.user?.roleId as any)?.code;
+    const factoryId = (roleCode === "FAC_MANAGER" || roleCode === "SUPERVISOR")
+      ? req.profile?.factory_belong_to
+      : req.body.factoryId;
+
     const order = await ProductionOrder.create({
       orderCode,
       vehicleTypeId,
@@ -114,6 +126,7 @@ export const create = async (
       expectedEndDate,
       note,
       createdBy: req.user?._id,
+      factoryId,
     });
 
     const populated = await ProductionOrder.findById(order._id)
@@ -230,6 +243,13 @@ export const remove = async (
       return;
     }
 
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode === "FAC_MANAGER" || roleCode === "SUPERVISOR") {
+      if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
+        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền sửa lệnh của nhà máy khác" } });
+        return;
+      }
+    }
     if (order.status === "in_progress") {
       res.status(400).json({
         success: false,
@@ -521,7 +541,7 @@ export const getProgress = async (
           ).length,
           overallPercentage: Math.round(
             progressByProcess.reduce((sum, p) => sum + p.percentage, 0) /
-              processes.length,
+            processes.length,
           ),
         },
       },
@@ -553,7 +573,7 @@ export const getReport = async (
     const registrations = await DailyRegistration.find({
       productionOrderId: order._id,
     })
-      .populate("userId", "name code department")
+      .populate("userId", "name code")
       .populate({
         path: "operationId",
         select: "name code processId",
@@ -573,7 +593,6 @@ export const getReport = async (
       const user = reg.userId as {
         name?: string;
         code?: string;
-        department?: string;
       };
       const operation = reg.operationId as {
         name?: string;
@@ -585,7 +604,6 @@ export const getReport = async (
         worker: {
           name: user?.name,
           code: user?.code,
-          department: user?.department,
         },
         operation: {
           name: operation?.name,
@@ -714,6 +732,21 @@ export const assignWorker = async (
         error: { code: "NOT_FOUND", message: "Không tìm thấy lệnh sản xuất" },
       });
       return;
+    }
+
+    const roleCode = (req.user?.roleId as any)?.code;
+    // Phân quyền theo role
+    if (roleCode === 'FAC_MANAGER' || roleCode === 'SUPERVISOR') {
+      const factoryId = req.profile?.factory_belong_to;
+      if (!factoryId) {
+        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Chưa được phân công giám sát nhà máy" } });
+        return;
+      }
+      // Ensure the order belongs to the manager's factory
+      if (order.factoryId.toString() !== factoryId.toString()) {
+        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác" } });
+        return;
+      }
     }
 
     if (order.status !== "in_progress") {

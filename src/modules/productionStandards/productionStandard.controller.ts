@@ -13,6 +13,12 @@ export const getAll = async (
     if (vehicleTypeId) filter.vehicleTypeId = vehicleTypeId;
     if (operationId) filter.operationId = operationId;
 
+    // Filter by factory for non-admins
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode !== "admin" && roleCode !== "ADMIN") {
+      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+    }
+
     const standards = await ProductionStandard.find(filter)
       .populate("vehicleTypeId", "name code")
       .populate({
@@ -70,6 +76,7 @@ export const create = async (
     const existing = await ProductionStandard.findOne({
       vehicleTypeId,
       operationId,
+      factoryId: ((req.user?.roleId as any)?.code === "supervisor" || (req.user?.roleId as any)?.code === "SUPERVISOR" || (req.user?.roleId as any)?.code === "FAC_MANAGER") ? req.profile?.factory_belong_to : req.body.factoryId,
     });
     if (existing) {
       res.status(400).json({
@@ -85,6 +92,7 @@ export const create = async (
     const standard = await ProductionStandard.create({
       vehicleTypeId,
       operationId,
+      factoryId: ((req.user?.roleId as any)?.code === "supervisor" || (req.user?.roleId as any)?.code === "SUPERVISOR" || (req.user?.roleId as any)?.code === "FAC_MANAGER") ? req.profile?.factory_belong_to : req.body.factoryId,
       expectedQuantity,
       bonusPerUnit: bonusPerUnit || 0,
       penaltyPerUnit: penaltyPerUnit || 0,

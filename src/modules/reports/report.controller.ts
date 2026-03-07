@@ -58,22 +58,33 @@ export const getDaily = async (
   }
 };
 
+// Admin/Supervisor: Lấy danh sách tổng hợp công nhân
 export const adminGetWorkers = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { date } = req.query;
+    const { date, factoryId } = req.query;
     const targetDate = date ? new Date(date as string) : new Date();
     targetDate.setHours(0, 0, 0, 0);
 
     const nextDate = new Date(targetDate);
     nextDate.setDate(nextDate.getDate() + 1);
 
-    const reports = await DailyReport.find({
+    const filter: any = {
       date: { $gte: targetDate, $lt: nextDate },
-    }).populate("userId", "name code department");
+    };
+
+    // Lọc theo nhà máy
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode !== "ADMIN" && roleCode !== "admin") {
+      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+    } else if (factoryId) {
+      filter.factoryId = factoryId;
+    }
+
+    const reports = await DailyReport.find(filter).populate("userId", "name code");
 
     res.json({ success: true, data: reports });
   } catch (error) {

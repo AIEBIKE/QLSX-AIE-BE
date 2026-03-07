@@ -40,6 +40,13 @@ const dailyRegistrationSchema = new Schema<IDailyRegistration>(
       required: true,
     },
 
+    // Thuộc nhà máy nào
+    factoryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Factory",
+      required: true,
+    },
+
     // ==================== THỜI GIAN ĐĂNG KÝ ====================
 
     // Thời điểm đăng ký thao tác
@@ -112,7 +119,8 @@ const dailyRegistrationSchema = new Schema<IDailyRegistration>(
     isReplacement: { type: Boolean, default: false },
 
     // Thay thế cho công nhân nào
-    replacesUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    reassignedFrom: { type: Schema.Types.ObjectId, ref: "User" },
+    replacesUserId: { type: Schema.Types.ObjectId, ref: "User" }, // Legacy
 
     // Lý do thay thế
     replacementReason: { type: String, default: "" },

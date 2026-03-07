@@ -84,6 +84,13 @@ const operationSchema = new Schema<IOperation>(
       min: 0,
     },
 
+    // Thời gian quy chuẩn để hoàn thành 1 đơn vị sản phẩm (phút/SP)
+    standardTime: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     // Số phút làm việc trong 1 ca (mặc định 8 giờ = 480 phút)
     workingMinutesPerShift: {
       type: Number,
