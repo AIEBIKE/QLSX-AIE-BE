@@ -12,6 +12,8 @@ export {
   auth, // Xác thực JWT token
   adminOnly, // Chỉ admin được truy cập
   adminOrSupervisor, // Admin hoặc giám sát
+  managerOnly, // Quản lý hoặc giám sát nhà máy
+  facManagerOnly, // Chỉ quản lý nhà máy
   authorize, // Phân quyền theo role
 } from "./auth.middleware";
 

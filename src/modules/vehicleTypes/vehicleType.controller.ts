@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import VehicleType from "./vehicleType.model";
 import { AuthRequest } from "../../types";
+import { getPaginationParams, formatPaginatedResponse } from "../../shared/utils/pagination";
 
 // GET all vehicle types
 export const getAll = async (
@@ -9,8 +10,8 @@ export const getAll = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { active } = req.query;
-    const filter: Record<string, unknown> = {};
+    const { active, page, limit, search } = req.query as any;
+    const filter: Record<string, any> = {};
 
     if (active !== undefined) {
       filter.active = active === "true";
@@ -18,12 +19,24 @@ export const getAll = async (
       filter.active = true;
     }
 
-    const vehicleTypes = await VehicleType.find(filter).sort({ code: 1 });
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { code: { $regex: search, $options: "i" } },
+      ];
+    }
 
-    res.json({
-      success: true,
-      data: vehicleTypes,
-    });
+    const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
+
+    const [total, vehicleTypes] = await Promise.all([
+      VehicleType.countDocuments(filter),
+      VehicleType.find(filter)
+        .sort({ code: 1 })
+        .skip(skip)
+        .limit(l),
+    ]);
+
+    res.json(formatPaginatedResponse(vehicleTypes, total, p, l));
   } catch (error) {
     next(error);
   }

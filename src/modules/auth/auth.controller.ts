@@ -310,7 +310,9 @@ export const register = async (
     // Xác định profile model
     let profileModel: "Admin" | "Supervisor" | "Worker" | "FactoryManager" = "Worker";
     let ModelToUse: any = Worker;
-    const profileData: any = { name };
+    // Generate account ID first since it's required by profile
+    const accountId = new mongoose.Types.ObjectId();
+    const profileData: any = { accountId, name };
 
     const roleCode = selectedRoleCode.toUpperCase();
     if (roleCode === "ADMIN") {
@@ -329,6 +331,7 @@ export const register = async (
 
     // Tạo account mới với status = pending (chờ duyệt)
     const account = await Account.create({
+      _id: accountId,
       code: employeeCode,
       email,
       password,
@@ -338,10 +341,6 @@ export const register = async (
       active: true,
       status: "pending", // Chờ admin duyệt
     });
-
-    // Cập nhật accountId cho profile
-    profile.accountId = account._id;
-    await profile.save();
 
     // Gửi email thông báo (nếu có email)
     if (email) {

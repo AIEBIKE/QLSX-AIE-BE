@@ -4,6 +4,7 @@ import { VehicleType } from "../vehicleTypes";
 import { Process } from "../processes";
 import DailyRegistration from "../registrations/dailyRegistration.model";
 import { AuthRequest } from "../../types";
+import { getPaginationParams, formatPaginatedResponse } from "../../shared/utils/pagination";
 
 export const getAll = async (
   req: AuthRequest,
@@ -11,10 +12,14 @@ export const getAll = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, vehicleTypeId } = req.query;
-    const filter: Record<string, unknown> = {};
+    const { status, vehicleTypeId, page, limit, search } = req.query as any;
+    const filter: Record<string, any> = {};
     if (status) filter.status = status;
     if (vehicleTypeId) filter.vehicleTypeId = vehicleTypeId;
+
+    if (search) {
+      filter.orderCode = { $regex: search, $options: "i" };
+    }
 
     // Filter by factory for non-admins
     const roleCode = (req.user?.roleId as any)?.code;
@@ -23,12 +28,19 @@ export const getAll = async (
       filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
     }
 
-    const orders = await ProductionOrder.find(filter)
-      .populate("vehicleTypeId", "name code")
-      .populate("createdBy", "name code")
-      .sort({ createdAt: -1 });
+    const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
 
-    res.json({ success: true, count: orders.length, data: orders });
+    const [total, orders] = await Promise.all([
+      ProductionOrder.countDocuments(filter),
+      ProductionOrder.find(filter)
+        .populate("vehicleTypeId", "name code")
+        .populate("createdBy", "name code")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(l),
+    ]);
+
+    res.json(formatPaginatedResponse(orders, total, p, l));
   } catch (error) {
     next(error);
   }

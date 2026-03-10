@@ -111,6 +111,50 @@ export const adminOrSupervisor = (
   next();
 };
 
+// Manager only middleware (Factory Manager or Supervisor)
+export const managerOnly = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): void => {
+  const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
+  const isAuthorized = ["fac_manager", "supervisor"].includes(roleCode || "");
+
+  if (!isAuthorized) {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: "FORBIDDEN",
+        message: "Chỉ quản lý hoặc giám sát nhà máy mới có quyền",
+      },
+    });
+    return;
+  }
+  next();
+};
+
+// Factory Manager only middleware
+export const facManagerOnly = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): void => {
+  const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
+  const isAuthorized = roleCode === "fac_manager";
+
+  if (!isAuthorized) {
+    res.status(403).json({
+      success: false,
+      error: {
+        code: "FORBIDDEN",
+        message: "Chỉ quản lý nhà máy mới có quyền thực hiện thao tác này",
+      },
+    });
+    return;
+  }
+  next();
+};
+
 // Role-based authorization
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
