@@ -3,6 +3,7 @@ import ProductionOrder from "./productionOrder.model";
 import { VehicleType } from "../vehicleTypes";
 import { Process } from "../processes";
 import DailyRegistration from "../registrations/dailyRegistration.model";
+import { Shift } from "../shifts";
 import { AuthRequest } from "../../types";
 import {
   getPaginationParams,
@@ -38,6 +39,7 @@ export const getAll = async (
       ProductionOrder.countDocuments(filter),
       ProductionOrder.find(filter)
         .populate("vehicleTypeId", "name code")
+        .populate("factoryId", "name code")
         .populate("createdBy", "name code")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -237,16 +239,13 @@ export const updateStatus = async (
         order.factoryId.toString() !==
         req.profile?.factory_belong_to?.toString()
       ) {
-        res
-          .status(403)
-          .json({
-            success: false,
-            error: {
-              code: "FORBIDDEN",
-              message:
-                "Không có quyền thay đổi trạng thái lệnh của nhà máy khác",
-            },
-          });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Không có quyền thay đổi trạng thái lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -315,15 +314,13 @@ export const remove = async (
         order.factoryId.toString() !==
         req.profile?.factory_belong_to?.toString()
       ) {
-        res
-          .status(403)
-          .json({
-            success: false,
-            error: {
-              code: "FORBIDDEN",
-              message: "Không có quyền sửa lệnh của nhà máy khác",
-            },
-          });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Không có quyền sửa lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -472,15 +469,13 @@ export const completeOrder = async (
         orderDoc.factoryId.toString() !==
         req.profile?.factory_belong_to?.toString()
       ) {
-        res
-          .status(403)
-          .json({
-            success: false,
-            error: {
-              code: "FORBIDDEN",
-              message: "Không có quyền hoàn thành lệnh của nhà máy khác",
-            },
-          });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Không có quyền hoàn thành lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -614,7 +609,12 @@ export const getProgress = async (
         return {
           _id: r._id,
           worker: { name: u?.name, code: u?.code },
-          operation: { name: op?.name, code: op?.code },
+          operationId: (r.operationId as any)?._id || r.operationId,
+          operation: {
+            _id: (r.operationId as any)?._id,
+            name: op?.name,
+            code: op?.code,
+          },
           status: r.status,
           expectedQuantity: r.expectedQuantity,
           actualQuantity: r.actualQuantity,
@@ -626,6 +626,9 @@ export const getProgress = async (
           checkOutTime: r.checkOutTime,
           bonusAmount: r.bonusAmount || 0,
           penaltyAmount: r.penaltyAmount || 0,
+          earlyLeaveReason: r.earlyLeaveReason || "",
+          replacementReason: r.replacementReason || "",
+          isReplacement: r.isReplacement || false,
           date: r.date,
         };
       });
@@ -660,6 +663,7 @@ export const getProgress = async (
           status: order.status,
         },
         progress: progressByProcess,
+        registrations,
         summary: {
           totalProcesses: processes.length,
           completedProcesses: progressByProcess.filter(
@@ -868,29 +872,25 @@ export const assignWorker = async (
     if (roleCode === "FAC_MANAGER") {
       const factoryId = req.profile?.factory_belong_to;
       if (!factoryId) {
-        res
-          .status(403)
-          .json({
-            success: false,
-            error: {
-              code: "FORBIDDEN",
-              message: "Chưa được phân công quản lý nhà máy",
-            },
-          });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Chưa được phân công quản lý nhà máy",
+          },
+        });
         return;
       }
       // Ensure the order belongs to the manager's factory
       if (order.factoryId.toString() !== factoryId.toString()) {
-        res
-          .status(403)
-          .json({
-            success: false,
-            error: {
-              code: "FORBIDDEN",
-              message:
-                "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác",
-            },
-          });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message:
+              "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -907,9 +907,30 @@ export const assignWorker = async (
     }
 
     // Tạo registration mới cho công nhân bổ sung
+    // Auto-determine factoryId from order + find/create current shift
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Tìm hoặc tạo shift cho worker hôm nay
+    let currentShift = await Shift.findOne({
+      userId,
+      date: today,
+    });
+    if (!currentShift) {
+      const startTime = new Date(today);
+      startTime.setHours(6, 30, 0, 0); // Default: 06:30 sáng
+      currentShift = await Shift.create({
+        userId,
+        date: today,
+        startTime,
+        status: "active",
+      });
+    }
+
     const registration = await DailyRegistration.create({
       userId,
-      shiftId,
+      shiftId: shiftId || currentShift._id,
+      factoryId: order.factoryId,
       date: new Date(),
       productionOrderId: order._id,
       operationId,

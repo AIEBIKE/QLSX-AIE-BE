@@ -261,7 +261,9 @@ export const complete = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { actualQuantity, interruptionNote, interruptionMinutes } = req.body;
+    const actualQuantity = Number(req.body.actualQuantity) || 0;
+    const interruptionNote = req.body.interruptionNote;
+    const interruptionMinutes = Number(req.body.interruptionMinutes) || 0;
 
     const registration = await DailyRegistration.findById(req.params.id);
     if (!registration) {
@@ -289,8 +291,8 @@ export const complete = async (
     });
 
     const expectedQty =
-      registration.adjustedExpectedQty || registration.expectedQuantity;
-    const deviation = actualQuantity - expectedQty;
+      registration.adjustedExpectedQty || registration.expectedQuantity || 0;
+    const deviation = (actualQuantity || 0) - (expectedQty || 0);
 
     let bonusAmount = 0;
     let penaltyAmount = 0;
@@ -314,8 +316,8 @@ export const complete = async (
     const operation = (await Operation.findById(
       registration.operationId,
     )) as any;
-    const stdTime = operation?.standardTime || 0;
-    registration.workingMinutes = actualQuantity * stdTime;
+    const stdTime = operation?.standardTime || operation?.standardMinutes || 0;
+    registration.workingMinutes = (actualQuantity || 0) * stdTime;
 
     registration.checkOutTime = new Date();
 
@@ -559,12 +561,10 @@ export const reassign = async (
 
     const oldReg = await DailyRegistration.findById(id);
     if (!oldReg) {
-      res
-        .status(404)
-        .json({
-          success: false,
-          error: { message: "Không tìm thấy đăng ký cũ" },
-        });
+      res.status(404).json({
+        success: false,
+        error: { message: "Không tìm thấy đăng ký cũ" },
+      });
       return;
     }
 
@@ -683,6 +683,87 @@ export const getWorkerSalary = async (
         dailyDetails,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /registrations/admin/shortage-count
+ * Returns count + detailed list of completed registrations where actualQuantity < expectedQuantity
+ */
+export const getShortageCount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    // Find active orders
+    const activeOrders = await ProductionOrder.find({
+      status: { $ne: "completed" },
+    }).select("_id orderName orderCode");
+
+    const orderIds = activeOrders.map((o: any) => o._id);
+    const orderMap: Record<string, any> = {};
+    activeOrders.forEach((o: any) => {
+      orderMap[o._id.toString()] = {
+        name: o.orderName,
+        code: o.orderCode,
+        _id: o._id,
+      };
+    });
+
+    // Find registrations with shortage
+    const shortages = await DailyRegistration.find({
+      productionOrderId: { $in: orderIds },
+      status: "completed",
+      $expr: { $lt: ["$actualQuantity", "$expectedQuantity"] },
+    })
+      .populate("userId", "name code")
+      .populate("operationId", "name code")
+      .lean();
+
+    // Get process info for each
+    const opIds = [
+      ...new Set(
+        shortages.map(
+          (s: any) =>
+            s.operationId?._id?.toString() || s.operationId?.toString(),
+        ),
+      ),
+    ];
+    const ops = await Operation.find({ _id: { $in: opIds } })
+      .populate("processId", "name code")
+      .lean();
+    const opProcessMap: Record<string, any> = {};
+    ops.forEach((op: any) => {
+      opProcessMap[op._id.toString()] = {
+        operationName: op.name,
+        processName: (op.processId as any)?.name || "",
+      };
+    });
+
+    const items = shortages.map((s: any) => {
+      const opId = s.operationId?._id?.toString() || "";
+      const info = opProcessMap[opId] || {};
+      const orderId = s.productionOrderId?.toString() || "";
+      return {
+        _id: s._id,
+        orderId,
+        orderName: orderMap[orderId]?.name || "",
+        orderCode: orderMap[orderId]?.code || "",
+        processName: info.processName || "",
+        operationName: s.operationId?.name || info.operationName || "",
+        workerName: (s.userId as any)?.name || "",
+        workerCode: (s.userId as any)?.code || "",
+        expectedQuantity: s.expectedQuantity,
+        actualQuantity: s.actualQuantity,
+        shortage: (s.expectedQuantity || 0) - (s.actualQuantity || 0),
+        date: s.date,
+      };
+    });
+
+    res.json({ count: items.length, items });
   } catch (error) {
     next(error);
   }

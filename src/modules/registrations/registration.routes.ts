@@ -25,5 +25,11 @@ router.post(
   adminOrSupervisor,
   controller.adminReassign,
 );
+router.get(
+  "/admin/shortage-count",
+  auth,
+  adminOrSupervisor,
+  controller.getShortageCount,
+);
 
 export default router;
