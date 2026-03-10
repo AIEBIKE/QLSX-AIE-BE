@@ -3,8 +3,12 @@ import ProductionOrder from "./productionOrder.model";
 import { VehicleType } from "../vehicleTypes";
 import { Process } from "../processes";
 import DailyRegistration from "../registrations/dailyRegistration.model";
+import { Shift } from "../shifts";
 import { AuthRequest } from "../../types";
-import { getPaginationParams, formatPaginatedResponse } from "../../shared/utils/pagination";
+import {
+  getPaginationParams,
+  formatPaginatedResponse,
+} from "../../shared/utils/pagination";
 
 export const getAll = async (
   req: AuthRequest,
@@ -25,7 +29,8 @@ export const getAll = async (
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode !== "ADMIN" && roleCode !== "admin") {
       // FAC_MANAGER filters by managed factory, others by assigned factory
-      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+      filter.factoryId =
+        req.profile?.factory_belong_to || req.profile?.factoryId;
     }
 
     const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
@@ -34,6 +39,7 @@ export const getAll = async (
       ProductionOrder.countDocuments(filter),
       ProductionOrder.find(filter)
         .populate("vehicleTypeId", "name code")
+        .populate("factoryId", "name code")
         .populate("createdBy", "name code")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -103,6 +109,8 @@ export const create = async (
       quantity,
       frameNumbers,
       engineNumbers,
+      frameNumberPrefix,
+      engineNumberPrefix,
       startDate,
       expectedEndDate,
       note,
@@ -124,16 +132,35 @@ export const create = async (
     const orderCode = `LSX-${year}-${String(count + 1).padStart(3, "0")}`;
 
     const roleCode = (req.user?.roleId as any)?.code;
-    const factoryId = roleCode === "FAC_MANAGER"
-      ? req.profile?.factory_belong_to
-      : req.body.factoryId;
+    const factoryId =
+      roleCode === "FAC_MANAGER"
+        ? req.profile?.factory_belong_to
+        : req.body.factoryId;
+
+    // ===== Auto-gen số khung / số động cơ =====
+    const qty = Number(quantity) || 1;
+    let finalFrameNumbers: string[] = frameNumbers || [];
+    let finalEngineNumbers: string[] = engineNumbers || [];
+
+    if (frameNumberPrefix && !frameNumbers?.length) {
+      finalFrameNumbers = Array.from(
+        { length: qty },
+        (_, i) => `${frameNumberPrefix}-${String(i + 1).padStart(3, "0")}`,
+      );
+    }
+    if (engineNumberPrefix && !engineNumbers?.length) {
+      finalEngineNumbers = Array.from(
+        { length: qty },
+        (_, i) => `${engineNumberPrefix}-${String(i + 1).padStart(3, "0")}`,
+      );
+    }
 
     const order = await ProductionOrder.create({
       orderCode,
       vehicleTypeId,
       quantity,
-      frameNumbers: frameNumbers || [],
-      engineNumbers: engineNumbers || [],
+      frameNumbers: finalFrameNumbers,
+      engineNumbers: finalEngineNumbers,
       startDate,
       expectedEndDate,
       note,
@@ -208,8 +235,17 @@ export const updateStatus = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode === "FAC_MANAGER") {
-      if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền thay đổi trạng thái lệnh của nhà máy khác" } });
+      if (
+        order.factoryId.toString() !==
+        req.profile?.factory_belong_to?.toString()
+      ) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Không có quyền thay đổi trạng thái lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -274,8 +310,17 @@ export const remove = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode === "FAC_MANAGER") {
-      if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền sửa lệnh của nhà máy khác" } });
+      if (
+        order.factoryId.toString() !==
+        req.profile?.factory_belong_to?.toString()
+      ) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Không có quyền sửa lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -420,8 +465,17 @@ export const completeOrder = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode === "FAC_MANAGER") {
-      if (orderDoc.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền hoàn thành lệnh của nhà máy khác" } });
+      if (
+        orderDoc.factoryId.toString() !==
+        req.profile?.factory_belong_to?.toString()
+      ) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Không có quyền hoàn thành lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -555,7 +609,12 @@ export const getProgress = async (
         return {
           _id: r._id,
           worker: { name: u?.name, code: u?.code },
-          operation: { name: op?.name, code: op?.code },
+          operationId: (r.operationId as any)?._id || r.operationId,
+          operation: {
+            _id: (r.operationId as any)?._id,
+            name: op?.name,
+            code: op?.code,
+          },
           status: r.status,
           expectedQuantity: r.expectedQuantity,
           actualQuantity: r.actualQuantity,
@@ -567,6 +626,9 @@ export const getProgress = async (
           checkOutTime: r.checkOutTime,
           bonusAmount: r.bonusAmount || 0,
           penaltyAmount: r.penaltyAmount || 0,
+          earlyLeaveReason: r.earlyLeaveReason || "",
+          replacementReason: r.replacementReason || "",
+          isReplacement: r.isReplacement || false,
           date: r.date,
         };
       });
@@ -601,6 +663,7 @@ export const getProgress = async (
           status: order.status,
         },
         progress: progressByProcess,
+        registrations,
         summary: {
           totalProcesses: processes.length,
           completedProcesses: progressByProcess.filter(
@@ -611,7 +674,7 @@ export const getProgress = async (
           ).length,
           overallPercentage: Math.round(
             progressByProcess.reduce((sum, p) => sum + p.percentage, 0) /
-            processes.length,
+              processes.length,
           ),
         },
       },
@@ -806,15 +869,28 @@ export const assignWorker = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     // Phân quyền theo role
-    if (roleCode === 'FAC_MANAGER') {
+    if (roleCode === "FAC_MANAGER") {
       const factoryId = req.profile?.factory_belong_to;
       if (!factoryId) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Chưa được phân công quản lý nhà máy" } });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Chưa được phân công quản lý nhà máy",
+          },
+        });
         return;
       }
       // Ensure the order belongs to the manager's factory
       if (order.factoryId.toString() !== factoryId.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác" } });
+        res.status(403).json({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message:
+              "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác",
+          },
+        });
         return;
       }
     }
@@ -831,9 +907,30 @@ export const assignWorker = async (
     }
 
     // Tạo registration mới cho công nhân bổ sung
+    // Auto-determine factoryId from order + find/create current shift
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Tìm hoặc tạo shift cho worker hôm nay
+    let currentShift = await Shift.findOne({
+      userId,
+      date: today,
+    });
+    if (!currentShift) {
+      const startTime = new Date(today);
+      startTime.setHours(6, 30, 0, 0); // Default: 06:30 sáng
+      currentShift = await Shift.create({
+        userId,
+        date: today,
+        startTime,
+        status: "active",
+      });
+    }
+
     const registration = await DailyRegistration.create({
       userId,
-      shiftId,
+      shiftId: shiftId || currentShift._id,
+      factoryId: order.factoryId,
       date: new Date(),
       productionOrderId: order._id,
       operationId,
