@@ -311,7 +311,9 @@ export const complete = async (
 
     // 3. Tính thời gian làm việc thực tế dựa trên định mức sản phẩm (Yêu cầu mới)
     // actualMinutes = actualQuantity * standardTime
-    const operation = (await Operation.findById(registration.operationId)) as any;
+    const operation = (await Operation.findById(
+      registration.operationId,
+    )) as any;
     const stdTime = operation?.standardTime || 0;
     registration.workingMinutes = actualQuantity * stdTime;
 
@@ -347,7 +349,8 @@ export const remove = async (
 
     if (
       registration.userId.toString() !== req.user?._id.toString() &&
-      (req.user?.roleId as any)?.code !== "ADMIN" && (req.user?.roleId as any)?.code !== "admin"
+      (req.user?.roleId as any)?.code !== "ADMIN" &&
+      (req.user?.roleId as any)?.code !== "admin"
     ) {
       res.status(403).json({
         success: false,
@@ -556,7 +559,12 @@ export const reassign = async (
 
     const oldReg = await DailyRegistration.findById(id);
     if (!oldReg) {
-      res.status(404).json({ success: false, error: { message: "Không tìm thấy đăng ký cũ" } });
+      res
+        .status(404)
+        .json({
+          success: false,
+          error: { message: "Không tìm thấy đăng ký cũ" },
+        });
       return;
     }
 
@@ -585,6 +593,96 @@ export const reassign = async (
     });
 
     res.status(201).json({ success: true, data: newReg });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Lương & thưởng cho worker đang đăng nhập
+export const getWorkerSalary = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.user?._id;
+    const month =
+      parseInt(req.query.month as string) || new Date().getMonth() + 1;
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const registrations = await DailyRegistration.find({
+      userId,
+      date: { $gte: startDate, $lte: endDate },
+      status: "completed",
+    })
+      .populate("operationId", "name code")
+      .sort({ date: -1 })
+      .lean();
+
+    let totalOutput = 0;
+    let totalBonus = 0;
+    let totalPenalty = 0;
+    const workingDatesSet = new Set<string>();
+
+    const dailyDetails = registrations.map((r) => {
+      const expected = r.adjustedExpectedQty || r.expectedQuantity || 0;
+      const actual = r.actualQuantity || 0;
+      const difference = actual - expected;
+
+      totalOutput += actual;
+      totalBonus += r.bonusAmount || 0;
+      totalPenalty += r.penaltyAmount || 0;
+      workingDatesSet.add(new Date(r.date).toISOString().split("T")[0]);
+
+      const op = r.operationId as unknown as { name?: string; code?: string };
+
+      return {
+        date: r.date,
+        operation: op?.name || "N/A",
+        operationCode: op?.code || "",
+        standardOutput: expected,
+        actualOutput: actual,
+        difference,
+        bonus: r.bonusAmount || 0,
+        penalty: r.penaltyAmount || 0,
+        workingMinutes: r.workingMinutes || 0,
+      };
+    });
+
+    const prevStart = new Date(year, month - 2, 1);
+    const prevEnd = new Date(year, month - 1, 0, 23, 59, 59, 999);
+    const prevRegs = await DailyRegistration.find({
+      userId,
+      date: { $gte: prevStart, $lte: prevEnd },
+      status: "completed",
+    }).lean();
+
+    const prevBonus = prevRegs.reduce((s, r) => s + (r.bonusAmount || 0), 0);
+    const prevPenalty = prevRegs.reduce(
+      (s, r) => s + (r.penaltyAmount || 0),
+      0,
+    );
+    const previousMonthIncome = prevBonus - prevPenalty;
+
+    const netIncome = totalBonus - totalPenalty;
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          workingDays: workingDatesSet.size,
+          totalOutput,
+          totalBonus,
+          totalPenalty,
+          netIncome,
+          previousMonthIncome,
+        },
+        dailyDetails,
+      },
+    });
   } catch (error) {
     next(error);
   }
