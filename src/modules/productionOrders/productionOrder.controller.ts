@@ -124,7 +124,7 @@ export const create = async (
     const orderCode = `LSX-${year}-${String(count + 1).padStart(3, "0")}`;
 
     const roleCode = (req.user?.roleId as any)?.code;
-    const factoryId = (roleCode === "FAC_MANAGER" || roleCode === "SUPERVISOR")
+    const factoryId = roleCode === "FAC_MANAGER"
       ? req.profile?.factory_belong_to
       : req.body.factoryId;
 
@@ -197,6 +197,23 @@ export const updateStatus = async (
       return;
     }
 
+    const order = await ProductionOrder.findById(req.params.id);
+    if (!order) {
+      res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Không tìm thấy lệnh sản xuất" },
+      });
+      return;
+    }
+
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode === "FAC_MANAGER") {
+      if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
+        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền thay đổi trạng thái lệnh của nhà máy khác" } });
+        return;
+      }
+    }
+
     if (status === "in_progress") {
       const existingActive = await ProductionOrder.findOne({
         status: "in_progress",
@@ -219,13 +236,13 @@ export const updateStatus = async (
       updateData.actualEndDate = new Date();
     }
 
-    const order = await ProductionOrder.findByIdAndUpdate(
+    const updatedOrder = await ProductionOrder.findByIdAndUpdate(
       req.params.id,
       updateData,
       { new: true },
     ).populate("vehicleTypeId", "name code");
 
-    if (!order) {
+    if (!updatedOrder) {
       res.status(404).json({
         success: false,
         error: { code: "NOT_FOUND", message: "Không tìm thấy lệnh sản xuất" },
@@ -233,7 +250,7 @@ export const updateStatus = async (
       return;
     }
 
-    res.json({ success: true, data: order });
+    res.json({ success: true, data: updatedOrder });
   } catch (error) {
     next(error);
   }
@@ -256,7 +273,7 @@ export const remove = async (
     }
 
     const roleCode = (req.user?.roleId as any)?.code;
-    if (roleCode === "FAC_MANAGER" || roleCode === "SUPERVISOR") {
+    if (roleCode === "FAC_MANAGER") {
       if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
         res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền sửa lệnh của nhà máy khác" } });
         return;
@@ -392,7 +409,24 @@ export const completeOrder = async (
       return;
     }
 
-    if (order.status !== "in_progress") {
+    const orderDoc = await ProductionOrder.findById(req.params.id);
+    if (!orderDoc) {
+      res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Không tìm thấy lệnh sản xuất" },
+      });
+      return;
+    }
+
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode === "FAC_MANAGER") {
+      if (orderDoc.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
+        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền hoàn thành lệnh của nhà máy khác" } });
+        return;
+      }
+    }
+
+    if (orderDoc.status !== "in_progress") {
       res.status(400).json({
         success: false,
         error: {
@@ -772,10 +806,10 @@ export const assignWorker = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     // Phân quyền theo role
-    if (roleCode === 'FAC_MANAGER' || roleCode === 'SUPERVISOR') {
+    if (roleCode === 'FAC_MANAGER') {
       const factoryId = req.profile?.factory_belong_to;
       if (!factoryId) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Chưa được phân công giám sát nhà máy" } });
+        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Chưa được phân công quản lý nhà máy" } });
         return;
       }
       // Ensure the order belongs to the manager's factory
