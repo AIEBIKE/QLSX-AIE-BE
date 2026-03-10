@@ -4,7 +4,10 @@ import { VehicleType } from "../vehicleTypes";
 import { Process } from "../processes";
 import DailyRegistration from "../registrations/dailyRegistration.model";
 import { AuthRequest } from "../../types";
-import { getPaginationParams, formatPaginatedResponse } from "../../shared/utils/pagination";
+import {
+  getPaginationParams,
+  formatPaginatedResponse,
+} from "../../shared/utils/pagination";
 
 export const getAll = async (
   req: AuthRequest,
@@ -25,7 +28,8 @@ export const getAll = async (
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode !== "ADMIN" && roleCode !== "admin") {
       // FAC_MANAGER filters by managed factory, others by assigned factory
-      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+      filter.factoryId =
+        req.profile?.factory_belong_to || req.profile?.factoryId;
     }
 
     const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
@@ -103,6 +107,8 @@ export const create = async (
       quantity,
       frameNumbers,
       engineNumbers,
+      frameNumberPrefix,
+      engineNumberPrefix,
       startDate,
       expectedEndDate,
       note,
@@ -124,16 +130,35 @@ export const create = async (
     const orderCode = `LSX-${year}-${String(count + 1).padStart(3, "0")}`;
 
     const roleCode = (req.user?.roleId as any)?.code;
-    const factoryId = roleCode === "FAC_MANAGER"
-      ? req.profile?.factory_belong_to
-      : req.body.factoryId;
+    const factoryId =
+      roleCode === "FAC_MANAGER"
+        ? req.profile?.factory_belong_to
+        : req.body.factoryId;
+
+    // ===== Auto-gen số khung / số động cơ =====
+    const qty = Number(quantity) || 1;
+    let finalFrameNumbers: string[] = frameNumbers || [];
+    let finalEngineNumbers: string[] = engineNumbers || [];
+
+    if (frameNumberPrefix && !frameNumbers?.length) {
+      finalFrameNumbers = Array.from(
+        { length: qty },
+        (_, i) => `${frameNumberPrefix}-${String(i + 1).padStart(3, "0")}`,
+      );
+    }
+    if (engineNumberPrefix && !engineNumbers?.length) {
+      finalEngineNumbers = Array.from(
+        { length: qty },
+        (_, i) => `${engineNumberPrefix}-${String(i + 1).padStart(3, "0")}`,
+      );
+    }
 
     const order = await ProductionOrder.create({
       orderCode,
       vehicleTypeId,
       quantity,
-      frameNumbers: frameNumbers || [],
-      engineNumbers: engineNumbers || [],
+      frameNumbers: finalFrameNumbers,
+      engineNumbers: finalEngineNumbers,
       startDate,
       expectedEndDate,
       note,
@@ -208,8 +233,20 @@ export const updateStatus = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode === "FAC_MANAGER") {
-      if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền thay đổi trạng thái lệnh của nhà máy khác" } });
+      if (
+        order.factoryId.toString() !==
+        req.profile?.factory_belong_to?.toString()
+      ) {
+        res
+          .status(403)
+          .json({
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message:
+                "Không có quyền thay đổi trạng thái lệnh của nhà máy khác",
+            },
+          });
         return;
       }
     }
@@ -274,8 +311,19 @@ export const remove = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode === "FAC_MANAGER") {
-      if (order.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền sửa lệnh của nhà máy khác" } });
+      if (
+        order.factoryId.toString() !==
+        req.profile?.factory_belong_to?.toString()
+      ) {
+        res
+          .status(403)
+          .json({
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message: "Không có quyền sửa lệnh của nhà máy khác",
+            },
+          });
         return;
       }
     }
@@ -420,8 +468,19 @@ export const completeOrder = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode === "FAC_MANAGER") {
-      if (orderDoc.factoryId.toString() !== req.profile?.factory_belong_to?.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền hoàn thành lệnh của nhà máy khác" } });
+      if (
+        orderDoc.factoryId.toString() !==
+        req.profile?.factory_belong_to?.toString()
+      ) {
+        res
+          .status(403)
+          .json({
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message: "Không có quyền hoàn thành lệnh của nhà máy khác",
+            },
+          });
         return;
       }
     }
@@ -611,7 +670,7 @@ export const getProgress = async (
           ).length,
           overallPercentage: Math.round(
             progressByProcess.reduce((sum, p) => sum + p.percentage, 0) /
-            processes.length,
+              processes.length,
           ),
         },
       },
@@ -806,15 +865,32 @@ export const assignWorker = async (
 
     const roleCode = (req.user?.roleId as any)?.code;
     // Phân quyền theo role
-    if (roleCode === 'FAC_MANAGER') {
+    if (roleCode === "FAC_MANAGER") {
       const factoryId = req.profile?.factory_belong_to;
       if (!factoryId) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Chưa được phân công quản lý nhà máy" } });
+        res
+          .status(403)
+          .json({
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message: "Chưa được phân công quản lý nhà máy",
+            },
+          });
         return;
       }
       // Ensure the order belongs to the manager's factory
       if (order.factoryId.toString() !== factoryId.toString()) {
-        res.status(403).json({ success: false, error: { code: "FORBIDDEN", message: "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác" } });
+        res
+          .status(403)
+          .json({
+            success: false,
+            error: {
+              code: "FORBIDDEN",
+              message:
+                "Không có quyền bổ sung công nhân vào lệnh của nhà máy khác",
+            },
+          });
         return;
       }
     }
