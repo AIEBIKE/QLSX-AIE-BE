@@ -7,7 +7,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:7000/api",
+      "value": "http://localhost:5000/api",
       "type": "string"
     },
     {
@@ -30,40 +30,6 @@
     {
       "name": "🔐 Auth",
       "item": [
-        {
-          "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    var jsonData = pm.response.json();",
-                  "    if (jsonData.data && jsonData.data.token) {",
-                  "        pm.collectionVariables.set('token', jsonData.data.token);",
-                  "        console.log('Token saved!');",
-                  "    }",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"CN001\",\n  \"password\": \"123456\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
-            }
-          }
-        },
         {
           "name": "Login Admin",
           "event": [
@@ -89,7 +55,75 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"ADMIN\",\n  \"password\": \"123456\"\n}"
+              "raw": "{\n  \"code\": \"AD001\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "        console.log('Manager Token saved!');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"QL001\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login Worker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "        console.log('Worker Token saved!');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CN001\",\n  \"password\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -127,29 +161,82 @@
           }
         },
         {
-          "name": "Logout",
+          "name": "Update Profile",
           "request": {
-            "method": "POST",
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"phone\": \"0987654321\"\n}"
+            },
             "url": {
-              "raw": "{{baseUrl}}/auth/logout",
+              "raw": "{{baseUrl}}/auth/profile",
               "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout"]
+              "path": ["auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"123456\",\n  \"newPassword\": \"654321\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CN001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forgot-password"]
             }
           }
         }
       ]
     },
     {
-      "name": "👥 Users (Admin)",
+      "name": "👥 Users (Admin/Manager)",
       "item": [
         {
           "name": "Get All Users",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/auth/users",
+              "raw": "{{baseUrl}}/auth/users?page=1&limit=10",
               "host": ["{{baseUrl}}"],
-              "path": ["auth", "users"]
+              "path": ["auth", "users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Pending Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "pending"]
             }
           }
         },
@@ -160,12 +247,104 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"CN100\",\n  \"name\": \"New Worker\",\n  \"password\": \"123456\",\n  \"role\": \"worker\"\n}"
+              "raw": "{\n  \"code\": \"CN100\",\n  \"name\": \"New Worker\",\n  \"password\": \"123456\",\n  \"role\": \"worker\",\n  \"factory_belong_to\": \"FACTORY_ID\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/users",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "users"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Worker Name\",\n  \"factory_belong_to\": \"NEW_FACTORY_ID\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":id"],
+              "variable": [{ "key": "id", "value": "USER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Approve User",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:id/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":id", "approve"],
+              "variable": [{ "key": "id", "value": "USER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Get Worker Work History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:id/work-history?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":id", "work-history"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ],
+              "variable": [{ "key": "id", "value": "USER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Get Salary Summary (All)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/salary-summary?month=3&year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "salary-summary"],
+              "query": [
+                { "key": "month", "value": "3" },
+                { "key": "year", "value": "2026" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏭 Factories",
+      "item": [
+        {
+          "name": "Get All Factories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/factories",
+              "host": ["{{baseUrl}}"],
+              "path": ["factories"]
+            }
+          }
+        },
+        {
+          "name": "Create Factory",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nhà máy Long Thành\",\n  \"location\": \"Đồng Nai\",\n  \"description\": \"Nhà máy lắp ráp chính\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/factories",
+              "host": ["{{baseUrl}}"],
+              "path": ["factories"]
             }
           }
         }
@@ -192,7 +371,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"AIE MS2\",\n  \"code\": \"MS2\",\n  \"description\": \"Xe điện AIE MS2\"\n}"
+              "raw": "{\n  \"name\": \"AIE MS1\",\n  \"code\": \"MS1\",\n  \"description\": \"Xe điện AIE MS1\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/vehicle-types",
@@ -204,7 +383,7 @@
       ]
     },
     {
-      "name": "⚙️ Processes",
+      "name": "⚙️ Processes & Operations",
       "item": [
         {
           "name": "Get All Processes",
@@ -218,13 +397,24 @@
           }
         },
         {
+          "name": "Get All Operations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/operations",
+              "host": ["{{baseUrl}}"],
+              "path": ["operations"]
+            }
+          }
+        },
+        {
           "name": "Create Process",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Test Process\",\n  \"code\": \"TP001\",\n  \"order\": 99,\n  \"description\": \"Test\"\n}"
+              "raw": "{\n  \"name\": \"Hàn khung\",\n  \"code\": \"HK\",\n  \"order\": 1,\n  \"description\": \"Hàn các mối khung xe\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/processes",
@@ -236,28 +426,44 @@
       ]
     },
     {
-      "name": "🔧 Operations",
+      "name": "📋 Production Orders (FacManager)",
       "item": [
         {
-          "name": "Get All Operations",
+          "name": "Get All Orders",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/operations",
+              "raw": "{{baseUrl}}/production-orders?page=1&limit=10",
               "host": ["{{baseUrl}}"],
-              "path": ["operations"]
+              "path": ["production-orders"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "📋 Production Orders",
-      "item": [
+        },
         {
-          "name": "Get All Production Orders",
+          "name": "Get Order By ID",
           "request": {
             "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", ":id"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleTypeId\": \"VEHICLE_ID\",\n  \"quantity\": 20,\n  \"startDate\": \"2026-03-10\",\n  \"expectedEndDate\": \"2026-03-20\",\n  \"note\": \"Lệnh sản xuất thử nghiệm\",\n  \"frameNumbers\": [\"F001\", \"F002\"],\n  \"engineNumbers\": [\"E001\", \"E002\"]\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/production-orders",
               "host": ["{{baseUrl}}"],
@@ -266,13 +472,89 @@
           }
         },
         {
-          "name": "Get Active Order",
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/:id/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", ":id", "status"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Assign Worker (Manager/Supervisor)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"WORKER_ID\",\n  \"operationId\": \"OP_ID\",\n  \"expectedQuantity\": 10,\n  \"replacementReason\": \"Nhu cầu bổ sung\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/:id/assign-worker",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", ":id", "assign-worker"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Check Completion",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/production-orders/active",
+              "raw": "{{baseUrl}}/production-orders/:id/check-completion",
               "host": ["{{baseUrl}}"],
-              "path": ["production-orders", "active"]
+              "path": ["production-orders", ":id", "check-completion"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Complete Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"forceComplete\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/:id/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", ":id", "complete"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Get Order Progress",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/:id/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", ":id", "progress"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Get Order Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/:id/report",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", ":id", "report"],
+              "variable": [{ "key": "id", "value": "ORDER_ID" }]
             }
           }
         }
@@ -286,6 +568,26 @@
           "request": {
             "method": "GET",
             "url": {
+              "raw": "{{baseUrl}}/production-standards?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-standards"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Standard",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleTypeId\": \"VEHICLE_ID\",\n  \"operationId\": \"OP_ID\",\n  \"targetQuantity\": 100,\n  \"basePrice\": 5000,\n  \"bonusPerUnit\": 500,\n  \"penaltyPerUnit\": 1000\n}"
+            },
+            "url": {
               "raw": "{{baseUrl}}/production-standards",
               "host": ["{{baseUrl}}"],
               "path": ["production-standards"]
@@ -295,7 +597,7 @@
       ]
     },
     {
-      "name": "📝 Registrations",
+      "name": "📝 Registrations (Worker/Admin)",
       "item": [
         {
           "name": "Get Today Registrations",
@@ -309,24 +611,102 @@
           }
         },
         {
-          "name": "Get Current Order",
+          "name": "Create Registration (Worker)",
           "request": {
-            "method": "GET",
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operationId\": \"OP_ID\",\n  \"expectedQuantity\": 10\n}"
+            },
             "url": {
-              "raw": "{{baseUrl}}/registrations/current-order",
+              "raw": "{{baseUrl}}/registrations",
               "host": ["{{baseUrl}}"],
-              "path": ["registrations", "current-order"]
+              "path": ["registrations"]
             }
           }
         },
         {
-          "name": "Get All Registrations (Admin)",
+          "name": "Complete Registration (Worker)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actualQuantity\": 10,\n  \"note\": \"Hoàn thành tốt\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/registrations/:id/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", ":id", "complete"],
+              "variable": [{ "key": "id", "value": "REG_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Reassign Task (Supervisor)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newUserId\": \"WORKER_ID\",\n  \"note\": \"Thay đổi nhân sự\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/registrations/:id/reassign",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", ":id", "reassign"],
+              "variable": [{ "key": "id", "value": "REG_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Admin Adjust Registration",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actualQuantity\": 12,\n  \"note\": \"Điều chỉnh lại số lượng thực tế\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/registrations/admin/:id/adjust",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", "admin", ":id", "adjust"],
+              "variable": [{ "key": "id", "value": "REG_ID" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛡️ QC (Supervisor)",
+      "item": [
+        {
+          "name": "Inspect Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productionOrderId\": \"ORDER_ID\",\n  \"vehicleFrameNumber\": \"F001\",\n  \"status\": \"passed\",\n  \"note\": \"Đạt chuẩn\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/qc/inspect",
+              "host": ["{{baseUrl}}"],
+              "path": ["qc", "inspect"]
+            }
+          }
+        },
+        {
+          "name": "Get QC Report By Order",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{baseUrl}}/registrations/admin/all",
+              "raw": "{{baseUrl}}/qc/report/:productionOrderId",
               "host": ["{{baseUrl}}"],
-              "path": ["registrations", "admin", "all"]
+              "path": ["qc", "report", ":productionOrderId"],
+              "variable": [{ "key": "productionOrderId", "value": "ORDER_ID" }]
             }
           }
         }
@@ -383,6 +763,18 @@
               "path": ["reports", "shift-summary"]
             }
           }
+        },
+        {
+          "name": "Get Daily Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/reports/daily?date=2026-03-10",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "daily"],
+              "query": [{ "key": "date", "value": "2026-03-10" }]
+            }
+          }
         }
       ]
     },
@@ -393,6 +785,22 @@
           "name": "Get Bonus Rules",
           "request": {
             "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/settings/bonus-rules",
+              "host": ["{{baseUrl}}"],
+              "path": ["settings", "bonus-rules"]
+            }
+          }
+        },
+        {
+          "name": "Update Bonus Rules",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"overtimeMultiplier\": 1.5,\n  \"holidayMultiplier\": 2.0\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/settings/bonus-rules",
               "host": ["{{baseUrl}}"],
