@@ -8,6 +8,7 @@ router.get("/current-order", auth, controller.getCurrentOrder);
 router.get("/today", auth, controller.getToday);
 router.get("/salary", auth, controller.getWorkerSalary);
 router.post("/", auth, controller.create);
+router.put("/:id/start", auth, controller.start);
 router.put("/:id/complete", auth, controller.complete);
 router.post("/:id/reassign", auth, adminOrSupervisor, controller.reassign); // Thêm role check cho reassign
 router.delete("/:id", auth, controller.remove);
