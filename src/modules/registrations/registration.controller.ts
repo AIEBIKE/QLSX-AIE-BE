@@ -255,6 +255,54 @@ export const create = async (
   }
 };
 
+export const start = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const registration = await DailyRegistration.findById(req.params.id);
+    if (!registration) {
+      res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Không tìm thấy đăng ký" },
+      });
+      return;
+    }
+
+    if (registration.userId.toString() !== req.user?._id.toString()) {
+      res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Không có quyền" },
+      });
+      return;
+    }
+
+    if (registration.status !== "registered") {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: "INVALID_STATUS",
+          message: "Chỉ có thể bắt đầu đăng ký ở trạng thái 'registered'",
+        },
+      });
+      return;
+    }
+
+    registration.status = "in_progress";
+    registration.checkInTime = new Date();
+    await registration.save();
+
+    const populated = await DailyRegistration.findById(registration._id)
+      .populate("operationId", "name code")
+      .populate("productionOrderId", "orderCode");
+
+    res.json({ success: true, data: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const complete = async (
   req: AuthRequest,
   res: Response,
@@ -278,6 +326,19 @@ export const complete = async (
       res.status(403).json({
         success: false,
         error: { code: "FORBIDDEN", message: "Không có quyền" },
+      });
+      return;
+    }
+
+    if (registration.status === "completed" || registration.status === "reassigned") {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: "INVALID_STATUS",
+          message: registration.status === "completed"
+            ? "Đăng ký này đã hoàn thành rồi"
+            : "Đăng ký này đã được chuyển cho người khác",
+        },
       });
       return;
     }
