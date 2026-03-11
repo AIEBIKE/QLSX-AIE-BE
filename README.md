@@ -1,4 +1,4 @@
-# QLSX Backend - Hệ thống Quản lý Sản xuất
+# QLSX Backend - Hệ thống Quản lý Sản xuất (Nhánh Malene)
 
 Backend API cho hệ thống quản lý sản xuất và công nhân.
 
