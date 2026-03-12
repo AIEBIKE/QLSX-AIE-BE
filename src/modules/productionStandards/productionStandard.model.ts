@@ -13,11 +13,10 @@ const productionStandardSchema = new Schema<IProductionStandard>(
       ref: "Operation",
       required: [true, "Thao tác là bắt buộc"],
     },
-    // Định mức riêng cho từng nhà máy
+    // Legacy: giữ lại field nhưng không bắt buộc (định mức giờ là global)
     factoryId: {
       type: Schema.Types.ObjectId,
       ref: "Factory",
-      required: [true, "Nhà máy là bắt buộc"],
     },
     expectedQuantity: {
       type: Number,
@@ -46,7 +45,7 @@ const productionStandardSchema = new Schema<IProductionStandard>(
 );
 
 productionStandardSchema.index(
-  { factoryId: 1, vehicleTypeId: 1, operationId: 1 },
+  { vehicleTypeId: 1, operationId: 1 },
   { unique: true },
 );
 

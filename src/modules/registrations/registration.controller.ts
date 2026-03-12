@@ -1,7 +1,8 @@
 import { Response, NextFunction } from "express";
 import DailyRegistration from "./dailyRegistration.model";
 import { ProductionOrder } from "../productionOrders";
-import { ProductionStandard } from "../productionStandards";
+import ProductionStandard from "../productionStandards/productionStandard.model";
+import FactoryStandardOverride from "../productionStandards/factoryStandardOverride.model";
 import { Operation } from "../operations";
 import { Process } from "../processes";
 import { Shift } from "../shifts";
@@ -21,9 +22,12 @@ export const getCurrentOrder = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const activeOrder = await ProductionOrder.findOne({
-      status: "in_progress",
-    }).populate("vehicleTypeId");
+    const workerFactoryId = req.profile?.factoryId || req.profile?.factory_belong_to;
+    const filter: Record<string, any> = { status: "in_progress" };
+    if (workerFactoryId) {
+      filter.factoryId = workerFactoryId;
+    }
+    const activeOrder = await ProductionOrder.findOne(filter).populate("vehicleTypeId");
 
     if (!activeOrder) {
       res.json({
@@ -57,7 +61,7 @@ export const getCurrentOrder = async (
     const operationsWithAvailability = operations.map((op) => {
       const opObj = op.toObject() as IOperation;
       const regs = todayRegs.filter(
-        (r) => r.operationId.toString() === op._id.toString(),
+        (r) => r.operationId?.toString() === op._id.toString(),
       );
       return {
         ...opObj,
@@ -68,8 +72,8 @@ export const getCurrentOrder = async (
             _id: string;
             name: string;
             code: string;
-          };
-          return { userId: user._id, name: user.name, code: user.code };
+          } | null;
+          return { userId: user?._id || null, name: user?.name || '', code: user?.code || '' };
         }),
       };
     });
@@ -229,7 +233,6 @@ export const create = async (
     const standard = await ProductionStandard.findOne({
       vehicleTypeId: activeOrder.vehicleTypeId,
       operationId,
-      factoryId: workerFactoryId,
     });
 
     const expectedQuantity = standard ? standard.expectedQuantity : 0;
@@ -359,9 +362,22 @@ export const complete = async (
     let penaltyAmount = 0;
 
     if (standard) {
-      if (deviation > 0) bonusAmount = deviation * standard.bonusPerUnit;
-      else if (deviation < 0)
-        penaltyAmount = Math.abs(deviation) * standard.penaltyPerUnit;
+      // Check factory override for bonus/penalty
+      const factoryId = order?.factoryId;
+      let bonus = standard.bonusPerUnit;
+      let penalty = standard.penaltyPerUnit;
+      if (factoryId) {
+        const override = await FactoryStandardOverride.findOne({
+          factoryId,
+          standardId: standard._id,
+        });
+        if (override) {
+          bonus = override.bonusPerUnit;
+          penalty = override.penaltyPerUnit;
+        }
+      }
+      if (deviation > 0) bonusAmount = deviation * bonus;
+      else if (deviation < 0) penaltyAmount = Math.abs(deviation) * penalty;
     }
 
     registration.actualQuantity = actualQuantity;
@@ -515,12 +531,25 @@ export const adminAdjust = async (
       registration.deviation = deviation;
 
       if (standard) {
+        // Check factory override for bonus/penalty
+        const factoryId = order?.factoryId;
+        let bonus = standard.bonusPerUnit;
+        let penalty = standard.penaltyPerUnit;
+        if (factoryId) {
+          const override = await FactoryStandardOverride.findOne({
+            factoryId,
+            standardId: standard._id,
+          });
+          if (override) {
+            bonus = override.bonusPerUnit;
+            penalty = override.penaltyPerUnit;
+          }
+        }
         if (deviation > 0) {
-          registration.bonusAmount = deviation * standard.bonusPerUnit;
+          registration.bonusAmount = deviation * bonus;
           registration.penaltyAmount = 0;
         } else if (deviation < 0) {
-          registration.penaltyAmount =
-            Math.abs(deviation) * standard.penaltyPerUnit;
+          registration.penaltyAmount = Math.abs(deviation) * penalty;
           registration.bonusAmount = 0;
         } else {
           registration.bonusAmount = 0;
@@ -550,9 +579,12 @@ export const adminReassign = async (
   try {
     const { userId, operationId, expectedQuantity } = req.body;
 
-    const activeOrder = await ProductionOrder.findOne({
-      status: "in_progress",
-    });
+    const roleCode = (req.user?.roleId as any)?.code;
+    const orderFilter: Record<string, any> = { status: "in_progress" };
+    if (roleCode !== "ADMIN" && roleCode !== "admin") {
+      orderFilter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+    }
+    const activeOrder = await ProductionOrder.findOne(orderFilter);
     if (!activeOrder) {
       res.status(400).json({
         success: false,

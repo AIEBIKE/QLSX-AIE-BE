@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import ProductionStandard from "./productionStandard.model";
+import FactoryStandardOverride from "./factoryStandardOverride.model";
 import { AuthRequest } from "../../types";
 import { getPaginationParams, formatPaginatedResponse } from "../../shared/utils/pagination";
 
@@ -9,22 +10,13 @@ export const getAll = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { vehicleTypeId, operationId, page, limit, search } = req.query as any;
+    const { vehicleTypeId, operationId, factoryId, page, limit, search } = req.query as any;
     const filter: Record<string, any> = {};
     if (vehicleTypeId) filter.vehicleTypeId = vehicleTypeId;
     if (operationId) filter.operationId = operationId;
 
     if (search) {
-      // ProductionStandard doesn't have a direct 'code' or 'name', usually linked to operation/vehicleType
-      // But we can support filtering by description or linked fields if we use aggregation or multiple lookups
-      // For now, simple description match if provided
       filter.description = { $regex: search, $options: "i" };
-    }
-
-    // Filter by factory for non-admins
-    const roleCode = (req.user?.roleId as any)?.code;
-    if (roleCode !== "admin" && roleCode !== "ADMIN") {
-      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
     }
 
     const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
@@ -53,12 +45,41 @@ export const getAll = async (
       ]),
     ]);
 
+    // Resolve factory for override lookup
+    const resolvedFactoryId = factoryId || req.profile?.factory_belong_to || req.profile?.factoryId;
+
+    // Merge factory overrides if factoryId is available
+    let mergedStandards: any[] = standards.map((s) => s.toObject());
+    if (resolvedFactoryId && standards.length > 0) {
+      const standardIds = standards.map((s) => s._id);
+      const overrides = await FactoryStandardOverride.find({
+        factoryId: resolvedFactoryId,
+        standardId: { $in: standardIds },
+      });
+      const overrideMap = new Map(
+        overrides.map((o) => [o.standardId.toString(), o]),
+      );
+      mergedStandards = standards.map((s) => {
+        const obj = s.toObject();
+        const override = overrideMap.get(s._id.toString());
+        if (override) {
+          return {
+            ...obj,
+            bonusPerUnit: override.bonusPerUnit,
+            penaltyPerUnit: override.penaltyPerUnit,
+            _hasOverride: true,
+          };
+        }
+        return { ...obj, _hasOverride: false };
+      });
+    }
+
     const meta = stats.length > 0 ? {
       maxBonus: stats[0].maxBonus || 0,
       maxPenalty: stats[0].maxPenalty || 0,
     } : { maxBonus: 0, maxPenalty: 0 };
 
-    res.json(formatPaginatedResponse(standards, total, p, l, meta));
+    res.json(formatPaginatedResponse(mergedStandards, total, p, l, meta));
   } catch (error) {
     next(error);
   }
@@ -95,20 +116,9 @@ export const create = async (
 ): Promise<void> => {
   try {
     const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
-    const isManager = roleCode === "fac_manager";
-    const isAdmin = roleCode === "admin";
+    const canManage = roleCode === "fac_manager" || roleCode === "admin";
 
-    // Only allow managers or admins tied to a factory (if any)
-    // As per user request, general admin doesn't have right to change factory standards
-    if (!isManager && isAdmin) {
-      res.status(403).json({
-        success: false,
-        error: { code: "FORBIDDEN", message: "Admin tổng không có quyền thay đổi định mức của nhà máy" },
-      });
-      return;
-    }
-
-    if (!isManager) {
+    if (!canManage) {
       res.status(403).json({
         success: false,
         error: { code: "FORBIDDEN", message: "Bạn không có quyền thực hiện thao tác này" },
@@ -125,20 +135,9 @@ export const create = async (
       description,
     } = req.body;
 
-    const factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
-
-    if (!factoryId) {
-      res.status(400).json({
-        success: false,
-        error: { code: "MISSING_FACTORY", message: "Không xác định được nhà máy của bạn" },
-      });
-      return;
-    }
-
     const existing = await ProductionStandard.findOne({
       vehicleTypeId,
       operationId,
-      factoryId,
     });
 
     if (existing) {
@@ -155,7 +154,6 @@ export const create = async (
     const standard = await ProductionStandard.create({
       vehicleTypeId,
       operationId,
-      factoryId,
       expectedQuantity,
       bonusPerUnit: bonusPerUnit || 0,
       penaltyPerUnit: penaltyPerUnit || 0,
@@ -179,8 +177,15 @@ export const update = async (
 ): Promise<void> => {
   try {
     const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
-    const isManager = roleCode === "fac_manager";
-    const isAdmin = roleCode === "admin";
+    const canManage = roleCode === "fac_manager" || roleCode === "admin";
+
+    if (!canManage) {
+      res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Bạn không có quyền chỉnh sửa định mức" },
+      });
+      return;
+    }
 
     const standard = await ProductionStandard.findById(req.params.id);
 
@@ -192,28 +197,11 @@ export const update = async (
       return;
     }
 
-    // Role check
-    if (isAdmin) {
-      res.status(403).json({
-        success: false,
-        error: { code: "FORBIDDEN", message: "Admin tổng không có quyền thay đổi định mức của nhà máy" },
-      });
-      return;
-    }
-
-    const factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
-    if (!isManager || standard.factoryId?.toString() !== factoryId?.toString()) {
-      res.status(403).json({
-        success: false,
-        error: { code: "FORBIDDEN", message: "Bạn không có quyền chỉnh sửa định mức của nhà máy khác" },
-      });
-      return;
-    }
-
-    // Perform update
-    Object.assign(standard, req.body);
-    // Ensure factoryId is not changed by standard update call
-    standard.factoryId = factoryId as any;
+    const { expectedQuantity, bonusPerUnit, penaltyPerUnit, description } = req.body;
+    if (expectedQuantity !== undefined) standard.expectedQuantity = expectedQuantity;
+    if (bonusPerUnit !== undefined) standard.bonusPerUnit = bonusPerUnit;
+    if (penaltyPerUnit !== undefined) standard.penaltyPerUnit = penaltyPerUnit;
+    if (description !== undefined) standard.description = description;
 
     await standard.save();
 
@@ -234,8 +222,15 @@ export const remove = async (
 ): Promise<void> => {
   try {
     const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
-    const isManager = roleCode === "fac_manager";
-    const isAdmin = roleCode === "admin";
+    const canManage = roleCode === "fac_manager" || roleCode === "admin";
+
+    if (!canManage) {
+      res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Bạn không có quyền xóa định mức" },
+      });
+      return;
+    }
 
     const standard = await ProductionStandard.findById(req.params.id);
 
@@ -247,27 +242,132 @@ export const remove = async (
       return;
     }
 
-    // Role check
-    if (isAdmin) {
-      res.status(403).json({
-        success: false,
-        error: { code: "FORBIDDEN", message: "Admin tổng không có quyền xóa định mức của nhà máy" },
-      });
-      return;
-    }
-
-    const factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
-    if (!isManager || standard.factoryId?.toString() !== factoryId?.toString()) {
-      res.status(403).json({
-        success: false,
-        error: { code: "FORBIDDEN", message: "Bạn không có quyền xóa định mức của nhà máy khác" },
-      });
-      return;
-    }
-
     await ProductionStandard.findByIdAndDelete(req.params.id);
 
     res.json({ success: true, message: "Đã xóa tiêu chuẩn" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ==========================================
+// Factory Override Endpoints
+// ==========================================
+
+export const upsertOverride = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
+    const isAdmin = roleCode === "admin";
+    const isFacManager = roleCode === "fac_manager";
+
+    if (!isAdmin && !isFacManager) {
+      res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Bạn không có quyền thực hiện thao tác này" },
+      });
+      return;
+    }
+
+    const { standardId, bonusPerUnit, penaltyPerUnit, factoryId: bodyFactoryId } = req.body;
+
+    // FAC_MANAGER can only set overrides for their own factory
+    const factoryId = isAdmin && bodyFactoryId
+      ? bodyFactoryId
+      : req.profile?.factory_belong_to || req.profile?.factoryId;
+
+    if (!factoryId) {
+      res.status(400).json({
+        success: false,
+        error: { code: "MISSING_FACTORY", message: "Không xác định được nhà máy" },
+      });
+      return;
+    }
+
+    if (!standardId) {
+      res.status(400).json({
+        success: false,
+        error: { code: "MISSING_STANDARD", message: "Thiếu standardId" },
+      });
+      return;
+    }
+
+    const override = await FactoryStandardOverride.findOneAndUpdate(
+      { factoryId, standardId },
+      {
+        factoryId,
+        standardId,
+        bonusPerUnit: bonusPerUnit ?? 0,
+        penaltyPerUnit: penaltyPerUnit ?? 0,
+      },
+      { upsert: true, new: true },
+    );
+
+    res.json({ success: true, data: override });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const batchUpsertOverrides = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const roleCode = (req.user?.roleId as any)?.code?.toLowerCase();
+    const isAdmin = roleCode === "admin";
+    const isFacManager = roleCode === "fac_manager";
+
+    if (!isAdmin && !isFacManager) {
+      res.status(403).json({
+        success: false,
+        error: { code: "FORBIDDEN", message: "Bạn không có quyền thực hiện thao tác này" },
+      });
+      return;
+    }
+
+    const { overrides, factoryId: bodyFactoryId } = req.body;
+
+    const factoryId = isAdmin && bodyFactoryId
+      ? bodyFactoryId
+      : req.profile?.factory_belong_to || req.profile?.factoryId;
+
+    if (!factoryId) {
+      res.status(400).json({
+        success: false,
+        error: { code: "MISSING_FACTORY", message: "Không xác định được nhà máy" },
+      });
+      return;
+    }
+
+    if (!Array.isArray(overrides) || overrides.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_DATA", message: "Cần truyền mảng overrides" },
+      });
+      return;
+    }
+
+    const bulkOps = overrides.map((o: any) => ({
+      updateOne: {
+        filter: { factoryId, standardId: o.standardId },
+        update: {
+          factoryId,
+          standardId: o.standardId,
+          bonusPerUnit: o.bonusPerUnit ?? 0,
+          penaltyPerUnit: o.penaltyPerUnit ?? 0,
+        },
+        upsert: true,
+      },
+    }));
+
+    await FactoryStandardOverride.bulkWrite(bulkOps);
+
+    res.json({ success: true, message: `Đã cập nhật ${overrides.length} override(s)` });
   } catch (error) {
     next(error);
   }
