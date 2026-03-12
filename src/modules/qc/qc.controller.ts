@@ -98,6 +98,7 @@ export const getList = async (req: AuthRequest, res: Response, next: NextFunctio
             page = "1",
             limit = "20",
             status,
+            factoryId: factoryIdParam,
         } = req.query as Record<string, string>;
 
         const filter: Record<string, any> = {};
@@ -118,9 +119,31 @@ export const getList = async (req: AuthRequest, res: Response, next: NextFunctio
             filter.status = status;
         }
 
-        // Giám sát / FAC_MANAGER chỉ thấy phiếu thuộc nhà máy của mình
         const roleCode = (req.user?.roleId as any)?.code || (req.user as any)?.role;
-        if (roleCode !== "ADMIN" && roleCode !== "admin") {
+        const isAdmin = roleCode === "ADMIN" || roleCode === "admin";
+
+        if (isAdmin) {
+            // Admin: nếu có factoryId param thì lọc theo nhà máy đó
+            if (factoryIdParam) {
+                const orderIds = await ProductionOrder.distinct("_id", { factoryId: factoryIdParam });
+                if (filter.productionOrderId) {
+                    // Giao nhau: lệnh được chọn phải thuộc nhà máy đó
+                    const inFactory = orderIds.some(
+                        (oid: any) => oid.toString() === filter.productionOrderId.toString()
+                    );
+                    if (!inFactory) {
+                        return res.json({
+                            success: true,
+                            data: [],
+                            pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+                        });
+                    }
+                } else {
+                    filter.productionOrderId = { $in: orderIds };
+                }
+            }
+        } else {
+            // Giám sát / FAC_MANAGER chỉ thấy phiếu thuộc nhà máy của mình
             const factoryId = (req.profile as any)?.factory_belong_to || (req.profile as any)?.factoryId;
             if (factoryId) {
                 // Tìm tất cả lệnh SX của nhà máy này
