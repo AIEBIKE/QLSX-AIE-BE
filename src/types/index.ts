@@ -236,6 +236,8 @@ export interface IProductionOrder extends Document {
   vehicleTypeId: Types.ObjectId; // Loại xe
   factoryId: Types.ObjectId; // Lệnh thuộc nhà máy nào
   quantity: number; // Số lượng
+  frameNumberPrefix?: string; // Prefix số khung
+  engineNumberPrefix?: string; // Prefix số máy
   frameNumbers: string[]; // Danh sách số khung
   engineNumbers: string[]; // Danh sách số máy
   startDate: Date; // Ngày bắt đầu

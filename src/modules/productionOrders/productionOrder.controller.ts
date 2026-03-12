@@ -58,7 +58,12 @@ export const getActive = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const activeOrder = await ProductionOrder.findOne({ status: "in_progress" })
+    const filter: Record<string, any> = { status: "in_progress" };
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode !== "ADMIN" && roleCode !== "admin") {
+      filter.factoryId = req.profile?.factory_belong_to || req.profile?.factoryId;
+    }
+    const activeOrder = await ProductionOrder.findOne(filter)
       .populate("vehicleTypeId")
       .populate("createdBy", "name");
 
@@ -159,6 +164,8 @@ export const create = async (
       orderCode,
       vehicleTypeId,
       quantity,
+      frameNumberPrefix: frameNumberPrefix || "",
+      engineNumberPrefix: engineNumberPrefix || "",
       frameNumbers: finalFrameNumbers,
       engineNumbers: finalEngineNumbers,
       startDate,
@@ -254,6 +261,7 @@ export const updateStatus = async (
       const existingActive = await ProductionOrder.findOne({
         status: "in_progress",
         _id: { $ne: req.params.id },
+        factoryId: order.factoryId,
       });
       if (existingActive) {
         res.status(400).json({
