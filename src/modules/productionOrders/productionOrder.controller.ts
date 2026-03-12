@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import ProductionOrder from "./productionOrder.model";
 import { VehicleType } from "../vehicleTypes";
+import { Factory } from "../factories";
 import { Process } from "../processes";
 import DailyRegistration from "../registrations/dailyRegistration.model";
 import { Shift } from "../shifts";
@@ -130,17 +131,25 @@ export const create = async (
       return;
     }
 
-    const year = new Date().getFullYear();
-    const count = await ProductionOrder.countDocuments({
-      createdAt: { $gte: new Date(year, 0, 1) },
-    });
-    const orderCode = `LSX-${year}-${String(count + 1).padStart(3, "0")}`;
-
     const roleCode = (req.user?.roleId as any)?.code;
     const factoryId =
       roleCode === "FAC_MANAGER"
         ? req.profile?.factory_belong_to
         : req.body.factoryId;
+
+    // Lấy mã nhà máy để ghép vào orderCode
+    const factory = factoryId ? await Factory.findById(factoryId) : null;
+    const factoryCode = factory?.code || "";
+    // Rút gọn: FACTORY_B → B, FACTORY_A → A
+    const shortFactoryCode = factoryCode.replace(/^FACTORY_/i, "");
+
+    const year = new Date().getFullYear();
+    const count = await ProductionOrder.countDocuments({
+      createdAt: { $gte: new Date(year, 0, 1) },
+    });
+    const orderCode = shortFactoryCode
+      ? `${shortFactoryCode}-LSX-${year}-${String(count + 1).padStart(3, "0")}`
+      : `LSX-${year}-${String(count + 1).padStart(3, "0")}`;
 
     // ===== Auto-gen số khung / số động cơ =====
     const qty = Number(quantity) || 1;
