@@ -182,8 +182,6 @@ export const create = async (
       engineNumberPrefix: engineNumberPrefix || "",
       frameNumbers: finalFrameNumbers,
       engineNumbers: finalEngineNumbers,
-      frameNumberPrefix: frameNumberPrefix || "",
-      engineNumberPrefix: engineNumberPrefix || "",
       startDate,
       expectedEndDate,
       note,
@@ -698,7 +696,7 @@ export const getProgress = async (
           ).length,
           overallPercentage: Math.round(
             progressByProcess.reduce((sum, p) => sum + p.percentage, 0) /
-              processes.length,
+            processes.length,
           ),
         },
       },
