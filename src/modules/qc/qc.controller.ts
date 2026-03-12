@@ -34,6 +34,56 @@ export const inspect = async (req: AuthRequest, res: Response, next: NextFunctio
                 .json({ success: false, error: { message: "Không tìm thấy lệnh sản xuất" } });
         }
 
+        // ── Kiểm tra trùng số khung / số máy ──────────────────────────────
+        // Tìm phiếu QC đã tồn tại với cùng frameNumber + engineNumber (cho phép upsert nếu đúng cặp)
+        const existingBySameCombo = await QualityControl.findOne({
+            productionOrderId,
+            frameNumber,
+            ...(engineNumber ? { engineNumber } : {}),
+        });
+
+        if (!existingBySameCombo) {
+            // Chỉ kiểm tra trùng khi đây là phiếu MỚI (không phải update)
+            const duplicateChecks: Promise<any>[] = [];
+
+            // Kiểm tra số khung
+            duplicateChecks.push(
+                QualityControl.findOne({ frameNumber }).select("_id frameNumber productionOrderId")
+            );
+
+            // Kiểm tra số máy (nếu có)
+            if (engineNumber) {
+                duplicateChecks.push(
+                    QualityControl.findOne({ engineNumber }).select("_id engineNumber productionOrderId")
+                );
+            }
+
+            const [dupFrame, dupEngine] = await Promise.all(duplicateChecks);
+
+            if (dupFrame) {
+                return res.status(409).json({
+                    success: false,
+                    error: {
+                        code: "DUPLICATE_FRAME_NUMBER",
+                        message: `Số khung "${frameNumber}" đã được sử dụng trong phiếu kiểm duyệt khác`,
+                        field: "frameNumber",
+                    },
+                });
+            }
+
+            if (dupEngine) {
+                return res.status(409).json({
+                    success: false,
+                    error: {
+                        code: "DUPLICATE_ENGINE_NUMBER",
+                        message: `Số động cơ "${engineNumber}" đã được sử dụng trong phiếu kiểm duyệt khác`,
+                        field: "engineNumber",
+                    },
+                });
+            }
+        }
+        // ──────────────────────────────────────────────────────────────────
+
         // Enrich results với operationName & processId/processName
         const enrichedResults = await Promise.all(
             (results || []).map(async (r: any) => {
@@ -174,7 +224,7 @@ export const getList = async (req: AuthRequest, res: Response, next: NextFunctio
         const [records, total] = await Promise.all([
             QualityControl.find(filter)
                 .populate("productionOrderId", "orderCode name vehicleTypeId")
-                .populate("inspectorId", "name code")
+                .populate({ path: "inspectorId", select: "code profileId profileModel", populate: { path: "profileId", select: "name" } })
                 .sort({ inspectionDate: -1, createdAt: -1 })
                 .skip(skip)
                 .limit(limitNum),
@@ -207,7 +257,7 @@ export const getOrderQCReport = async (
     try {
         const { productionOrderId } = req.params;
         const records = await QualityControl.find({ productionOrderId })
-            .populate("inspectorId", "name code")
+            .populate({ path: "inspectorId", select: "code profileId profileModel", populate: { path: "profileId", select: "name" } })
             .populate("results.operationId", "name code");
 
         res.json({ success: true, data: records, count: records.length });
@@ -223,7 +273,7 @@ export const getById = async (req: AuthRequest, res: Response, next: NextFunctio
     try {
         const record = await QualityControl.findById(req.params.id)
             .populate("productionOrderId", "orderCode name vehicleTypeId frameNumbers engineNumbers")
-            .populate("inspectorId", "name code")
+            .populate({ path: "inspectorId", select: "code profileId profileModel", populate: { path: "profileId", select: "name" } })
             .populate("results.operationId", "name code");
 
         if (!record) {
@@ -290,7 +340,7 @@ export const updateQC = async (req: AuthRequest, res: Response, next: NextFuncti
             { new: true, runValidators: true }
         )
             .populate("productionOrderId", "orderCode name vehicleTypeId")
-            .populate("inspectorId", "name code");
+            .populate({ path: "inspectorId", select: "code profileId profileModel", populate: { path: "profileId", select: "name" } });
 
         if (!updated) {
             return res
@@ -315,7 +365,7 @@ export const getVehicleQC = async (
     try {
         const { frameNumber, engineNumber } = req.query;
         const record = await QualityControl.findOne({ frameNumber, engineNumber })
-            .populate("inspectorId", "name code")
+            .populate({ path: "inspectorId", select: "code profileId profileModel", populate: { path: "profileId", select: "name" } })
             .populate("results.operationId", "name code");
 
         if (!record) {
