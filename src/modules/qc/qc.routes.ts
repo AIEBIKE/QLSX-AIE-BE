@@ -1,16 +1,31 @@
 import { Router } from "express";
 import * as controller from "./qc.controller";
-import { auth, adminOnly, adminOrSupervisor } from "../../shared/middleware";
+import { auth, adminOrSupervisor } from "../../shared/middleware";
 
 const router = Router();
 
-// Supervisors and Admins can perform QC
+// Tạo / cập nhật phiếu QC (upsert)
 router.post("/inspect", auth, adminOrSupervisor, controller.inspect);
 
-// Get report by production order
+// Danh sách phiếu QC (filter theo ngày / lệnh SX)
+router.get("/list", auth, adminOrSupervisor, controller.getList);
+
+// Hoàn thành tất cả phiếu pending
+router.post("/complete-all", auth, adminOrSupervisor, controller.completeAll);
+
+// Báo cáo QC theo lệnh sản xuất
 router.get("/report/:productionOrderId", auth, adminOrSupervisor, controller.getOrderQCReport);
 
-// Get detail by vehicle
+// Tra cứu theo số khung/máy
 router.get("/vehicle", auth, controller.getVehicleQC);
+
+// Chi tiết phiếu QC theo ID
+router.get("/:id", auth, adminOrSupervisor, controller.getById);
+
+// Hoàn thành 1 phiếu QC
+router.put("/:id/complete", auth, adminOrSupervisor, controller.completeQC);
+
+// Cập nhật phiếu QC
+router.put("/:id", auth, adminOrSupervisor, controller.updateQC);
 
 export default router;

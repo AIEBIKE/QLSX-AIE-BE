@@ -240,6 +240,8 @@ export interface IProductionOrder extends Document {
   engineNumberPrefix?: string; // Prefix số máy
   frameNumbers: string[]; // Danh sách số khung
   engineNumbers: string[]; // Danh sách số máy
+  frameNumberPrefix?: string; // Tiền tố số khung
+  engineNumberPrefix?: string; // Tiền tố số máy
   startDate: Date; // Ngày bắt đầu
   expectedEndDate?: Date; // Ngày dự kiến hoàn thành
   actualEndDate?: Date; // Ngày hoàn thành thực tế

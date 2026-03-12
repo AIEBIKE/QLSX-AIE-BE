@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import Operation from "./operation.model";
+import Process from "../processes/process.model";
 import { AuthRequest } from "../../types";
 
 export const getAll = async (
@@ -8,10 +9,21 @@ export const getAll = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { processId, active } = req.query;
+    const { processId, vehicleTypeId, active } = req.query;
     const filter: Record<string, unknown> = {};
 
-    if (processId) filter.processId = processId;
+    if (processId) {
+      filter.processId = processId;
+    } else if (vehicleTypeId) {
+      // Lookup processes belonging to this vehicleType
+      const processes = await Process.find(
+        { vehicleTypeId, active: true },
+        { _id: 1 }
+      );
+      const processIds = processes.map((p) => p._id);
+      filter.processId = { $in: processIds };
+    }
+
     if (active !== undefined) {
       filter.active = active === "true";
     } else {
@@ -19,7 +31,7 @@ export const getAll = async (
     }
 
     const operations = await Operation.find(filter)
-      .populate("processId", "name code order")
+      .populate("processId", "name code order vehicleTypeId")
       .sort({ code: 1 });
 
     res.json({ success: true, data: operations });
@@ -27,6 +39,7 @@ export const getAll = async (
     next(error);
   }
 };
+
 
 export const getById = async (
   req: AuthRequest,
