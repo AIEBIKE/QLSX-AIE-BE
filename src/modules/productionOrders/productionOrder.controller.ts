@@ -96,6 +96,7 @@ export const getById = async (
   try {
     const order = await ProductionOrder.findById(req.params.id)
       .populate("vehicleTypeId")
+      .populate("factoryId", "name code")
       .populate("createdBy", "name code");
 
     if (!order) {

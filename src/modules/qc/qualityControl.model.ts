@@ -33,7 +33,7 @@ const QualityControlSchema: Schema = new Schema(
         engineNumber: { type: String, required: true },
         color: { type: String },
         inspectionDate: { type: Date, default: Date.now },
-        inspectorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        inspectorId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
         results: [
             {
                 operationId: { type: Schema.Types.ObjectId, ref: "Operation" },
