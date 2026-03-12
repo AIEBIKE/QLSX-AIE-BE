@@ -58,7 +58,17 @@ export const getActive = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const activeOrder = await ProductionOrder.findOne({ status: "in_progress" })
+    const filter: Record<string, any> = { status: "in_progress" };
+
+    // Giám sát & quản lý nhà máy chỉ thấy lệnh nhà máy mình
+    const roleCode = (req.user?.roleId as any)?.code;
+    if (roleCode !== "ADMIN" && roleCode !== "admin") {
+      const factoryId =
+        req.profile?.factory_belong_to || req.profile?.factoryId;
+      if (factoryId) filter.factoryId = factoryId;
+    }
+
+    const activeOrder = await ProductionOrder.findOne(filter)
       .populate("vehicleTypeId")
       .populate("createdBy", "name");
 
@@ -161,6 +171,8 @@ export const create = async (
       quantity,
       frameNumbers: finalFrameNumbers,
       engineNumbers: finalEngineNumbers,
+      frameNumberPrefix: frameNumberPrefix || "",
+      engineNumberPrefix: engineNumberPrefix || "",
       startDate,
       expectedEndDate,
       note,

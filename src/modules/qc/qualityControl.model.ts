@@ -1,5 +1,14 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export interface IQCResult {
+    operationId: mongoose.Types.ObjectId;
+    operationName?: string;
+    processId?: mongoose.Types.ObjectId;
+    processName?: string;
+    status: "pass" | "fail";
+    note?: string;
+}
+
 export interface IQualityControl extends Document {
     productionOrderId: mongoose.Types.ObjectId;
     frameNumber: string;
@@ -7,11 +16,7 @@ export interface IQualityControl extends Document {
     color?: string;
     inspectionDate: Date;
     inspectorId: mongoose.Types.ObjectId;
-    results: {
-        operationId: mongoose.Types.ObjectId;
-        status: "pass" | "fail";
-        note?: string;
-    }[];
+    results: IQCResult[];
     status: "passed" | "failed";
     createdAt: Date;
     updatedAt: Date;
@@ -32,17 +37,22 @@ const QualityControlSchema: Schema = new Schema(
         results: [
             {
                 operationId: { type: Schema.Types.ObjectId, ref: "Operation" },
+                operationName: { type: String },
+                processId: { type: Schema.Types.ObjectId, ref: "Process" },
+                processName: { type: String },
                 status: { type: String, enum: ["pass", "fail"], default: "pass" },
                 note: { type: String },
             },
         ],
-        status: { type: String, enum: ["passed", "failed"], default: "passed" },
+        status: { type: String, enum: ["pending", "passed", "failed"], default: "pending" },
     },
     { timestamps: true }
 );
 
-// Index for quick search by frame/engine
+// Indexes
 QualityControlSchema.index({ frameNumber: 1, engineNumber: 1 });
 QualityControlSchema.index({ productionOrderId: 1 });
+QualityControlSchema.index({ inspectionDate: 1 });
+QualityControlSchema.index({ inspectorId: 1 });
 
 export default mongoose.model<IQualityControl>("QualityControl", QualityControlSchema);

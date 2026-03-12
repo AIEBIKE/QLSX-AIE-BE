@@ -55,6 +55,12 @@ const productionOrderSchema = new Schema<IProductionOrder>(
     // Danh sách số máy (động cơ)
     engineNumbers: [{ type: String, trim: true }],
 
+    // Tiền tố số khung (VD: "XDD")
+    frameNumberPrefix: { type: String, trim: true, default: "" },
+
+    // Tiền tố số máy (VD: "DC")
+    engineNumberPrefix: { type: String, trim: true, default: "" },
+
     // ==================== THỜI GIAN ====================
 
     // Ngày bắt đầu sản xuất
