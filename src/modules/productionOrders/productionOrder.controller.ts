@@ -17,7 +17,7 @@ export const getAll = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { status, vehicleTypeId, page, limit, search } = req.query as any;
+    const { status, vehicleTypeId, page, limit, search, factoryId } = req.query as any;
     const filter: Record<string, any> = {};
     if (status) filter.status = status;
     if (vehicleTypeId) filter.vehicleTypeId = vehicleTypeId;
@@ -26,12 +26,15 @@ export const getAll = async (
       filter.orderCode = { $regex: search, $options: "i" };
     }
 
-    // Filter by factory for non-admins
+    // Filter by factory
     const roleCode = (req.user?.roleId as any)?.code;
     if (roleCode !== "ADMIN" && roleCode !== "admin") {
       // FAC_MANAGER filters by managed factory, others by assigned factory
       filter.factoryId =
         req.profile?.factory_belong_to || req.profile?.factoryId;
+    } else if (factoryId) {
+      // Admin can optionally filter by a specific factory
+      filter.factoryId = factoryId;
     }
 
     const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
