@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import ProductionStandard from "./productionStandard.model";
-import FactoryStandardOverride from "./factoryStandardOverride.model";
+import FactoryStandardOverride from "./factoryStandardOverride.model"; // [splinh]
 import { AuthRequest } from "../../types";
 import { getPaginationParams, formatPaginatedResponse } from "../../shared/utils/pagination";
 
@@ -48,7 +48,7 @@ export const getAll = async (
     // Resolve factory for override lookup
     const resolvedFactoryId = factoryId || req.profile?.factory_belong_to || req.profile?.factoryId;
 
-    // Merge factory overrides if factoryId is available
+    // [splinh] Merge factory overrides nếu có factoryId
     let mergedStandards: any[] = standards.map((s) => s.toObject());
     if (resolvedFactoryId && standards.length > 0) {
       const standardIds = standards.map((s) => s._id);
@@ -251,7 +251,7 @@ export const remove = async (
 };
 
 // ==========================================
-// Factory Override Endpoints
+// [splinh] Factory Override Endpoints
 // ==========================================
 
 export const upsertOverride = async (

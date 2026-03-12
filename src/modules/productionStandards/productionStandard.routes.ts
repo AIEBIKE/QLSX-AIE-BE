@@ -7,8 +7,8 @@ const router = Router();
 router.get("/", auth, controller.getAll);
 router.get("/:id", auth, controller.getById);
 router.post("/", auth, adminOrSupervisor, controller.create);
-router.put("/overrides", auth, adminOrSupervisor, controller.upsertOverride);
-router.put("/overrides/batch", auth, adminOrSupervisor, controller.batchUpsertOverrides);
+router.put("/overrides", auth, adminOrSupervisor, controller.upsertOverride); // [splinh]
+router.put("/overrides/batch", auth, adminOrSupervisor, controller.batchUpsertOverrides); // [splinh]
 router.put("/:id", auth, adminOrSupervisor, controller.update);
 router.delete("/:id", auth, adminOrSupervisor, controller.remove);
 

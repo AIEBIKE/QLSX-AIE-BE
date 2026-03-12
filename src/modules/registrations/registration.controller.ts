@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import DailyRegistration from "./dailyRegistration.model";
 import { ProductionOrder } from "../productionOrders";
 import ProductionStandard from "../productionStandards/productionStandard.model";
-import FactoryStandardOverride from "../productionStandards/factoryStandardOverride.model";
+import FactoryStandardOverride from "../productionStandards/factoryStandardOverride.model"; // [splinh]
 import { Operation } from "../operations";
 import { Process } from "../processes";
 import { Shift } from "../shifts";
@@ -362,7 +362,7 @@ export const complete = async (
     let penaltyAmount = 0;
 
     if (standard) {
-      // Check factory override for bonus/penalty
+      // [splinh] Check factory override for bonus/penalty
       const factoryId = order?.factoryId;
       let bonus = standard.bonusPerUnit;
       let penalty = standard.penaltyPerUnit;

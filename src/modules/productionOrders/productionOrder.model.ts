@@ -49,10 +49,10 @@ const productionOrderSchema = new Schema<IProductionOrder>(
 
     // ==================== SỐ KHUNG & SỐ MÁY ====================
 
-    // Prefix để tự sinh số khung (VD: "xyz" → xyz-001, xyz-002, ...)
+    // [splinh] Prefix để tự sinh số khung (VD: "xyz" → xyz-001, xyz-002, ...)
     frameNumberPrefix: { type: String, trim: true, default: "" },
 
-    // Prefix để tự sinh số máy (VD: "dc_xyz" → dc_xyz-001, dc_xyz-002, ...)
+    // [splinh] Prefix để tự sinh số máy (VD: "dc_xyz" → dc_xyz-001, dc_xyz-002, ...)
     engineNumberPrefix: { type: String, trim: true, default: "" },
 
     // Danh sách số khung xe

@@ -13,7 +13,7 @@ const productionStandardSchema = new Schema<IProductionStandard>(
       ref: "Operation",
       required: [true, "Thao tác là bắt buộc"],
     },
-    // Legacy: giữ lại field nhưng không bắt buộc (định mức giờ là global)
+    // [splinh] Legacy: giữ lại field nhưng không bắt buộc (định mức giờ là global)
     factoryId: {
       type: Schema.Types.ObjectId,
       ref: "Factory",
@@ -44,6 +44,7 @@ const productionStandardSchema = new Schema<IProductionStandard>(
   },
 );
 
+// [splinh] Unique index: global theo vehicleType + operation (không còn factoryId)
 productionStandardSchema.index(
   { vehicleTypeId: 1, operationId: 1 },
   { unique: true },

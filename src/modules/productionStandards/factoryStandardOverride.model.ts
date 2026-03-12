@@ -1,3 +1,4 @@
+// [splinh] Model override thưởng/phạt theo nhà máy
 import mongoose, { Schema, Model } from "mongoose";
 
 export interface IFactoryStandardOverride {

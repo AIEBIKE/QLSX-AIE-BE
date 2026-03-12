@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import ProductionOrder from "./productionOrder.model";
 import { VehicleType } from "../vehicleTypes";
-import { Factory } from "../factories";
+import { Factory } from "../factories"; // [splinh]
 import { Process } from "../processes";
 import DailyRegistration from "../registrations/dailyRegistration.model";
 import { Shift } from "../shifts";
@@ -137,7 +137,7 @@ export const create = async (
         ? req.profile?.factory_belong_to
         : req.body.factoryId;
 
-    // Lấy mã nhà máy để ghép vào orderCode
+    // [splinh] Lấy mã nhà máy để ghép vào orderCode
     const factory = factoryId ? await Factory.findById(factoryId) : null;
     const factoryCode = factory?.code || "";
     // Rút gọn: FACTORY_B → B, FACTORY_A → A
@@ -173,8 +173,8 @@ export const create = async (
       orderCode,
       vehicleTypeId,
       quantity,
-      frameNumberPrefix: frameNumberPrefix || "",
-      engineNumberPrefix: engineNumberPrefix || "",
+      frameNumberPrefix: frameNumberPrefix || "", // [splinh]
+      engineNumberPrefix: engineNumberPrefix || "", // [splinh]
       frameNumbers: finalFrameNumbers,
       engineNumbers: finalEngineNumbers,
       startDate,
