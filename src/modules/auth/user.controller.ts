@@ -141,7 +141,18 @@ export const getById = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const account = await Account.findById(req.params.id)
+    const { id } = req.params;
+
+    // Kiểm tra ID hợp lệ
+    if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_ID", message: "ID không hợp lệ" },
+      });
+      return;
+    }
+
+    const account = await Account.findById(id as string)
       .select("-password")
       .populate("roleId")
       .populate("profileId");
@@ -298,9 +309,19 @@ export const update = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
+    const { id } = req.params;
     const { password, name, dateOfBirth, citizenId, address, factoryId, factories_manage, roleId, role, active, status } = req.body;
 
-    const account = await Account.findById(req.params.id);
+    // Kiểm tra ID hợp lệ
+    if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_ID", message: "ID không hợp lệ" },
+      });
+      return;
+    }
+
+    const account = await Account.findById(id as string);
 
     if (!account) {
       res.status(404).json({
@@ -482,7 +503,18 @@ export const remove = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const account = await Account.findById(req.params.id);
+    const { id } = req.params;
+
+    // Kiểm tra ID hợp lệ
+    if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({
+        success: false,
+        error: { code: "INVALID_ID", message: "ID không hợp lệ" },
+      });
+      return;
+    }
+
+    const account = await Account.findById(id as string);
 
     if (!account) {
       res.status(404).json({
@@ -519,7 +551,7 @@ export const getWorkHistory = async (
     const { startDate, endDate, productionOrderId, page, limit } = req.query as any;
     const { page: p, limit: l, skip } = getPaginationParams({ page, limit });
 
-    const account = await Account.findById(req.params.id)
+    const account = await Account.findById(req.params.id as string)
       .select("-password")
       .populate("roleId")
       .populate("profileId");
@@ -607,103 +639,7 @@ export const getWorkHistory = async (
   }
 };
 
-// Get pending users (waiting for approval)
-export const getPendingUsers = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const accounts = await Account.find({ status: "pending" })
-      .select("-password")
-      .populate("roleId")
-      .populate("profileId")
-      .sort({ createdAt: -1 });
-
-    const users = accounts.map(acc => {
-      const profile = acc.profileId as any;
-      return {
-        _id: acc._id,
-        code: acc.code,
-        email: acc.email,
-        active: acc.active,
-        status: acc.status,
-        roleId: acc.roleId,
-        role: (acc.roleId as any)?.code?.toLowerCase(),
-        name: profile?.name,
-        factoryId: profile?.factoryId || profile?.factory_belong_to,
-        createdAt: acc.createdAt,
-        updatedAt: acc.updatedAt
-      };
-    });
-
-    res.json({ success: true, count: users.length, data: users });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Approve user
-export const approveUser = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const account = await Account.findByIdAndUpdate(
-      req.params.id,
-      { status: "approved" },
-      { new: true },
-    ).select("-password");
-
-    if (!account) {
-      res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Không tìm thấy người dùng" },
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      message: "Đã duyệt tài khoản thành công",
-      data: account,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Reject user
-export const rejectUser = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const account = await Account.findByIdAndUpdate(
-      req.params.id,
-      { status: "rejected" },
-      { new: true },
-    ).select("-password");
-
-    if (!account) {
-      res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Không tìm thấy người dùng" },
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      message: "Đã từ chối tài khoản",
-      data: account,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// User Approval Logic (Removed) // [minhlaoma-13/03-08:45]
 
 // Get all workers salary summary (for admin)
 export const getAllWorkersSalary = async (

@@ -55,6 +55,7 @@ export interface IAccount extends Document {
   profileModel: "Admin" | "Supervisor" | "Worker" | "FactoryManager"; // Model profile đang dùng
   active: boolean; // Trạng thái hoạt động
   status: "pending" | "approved" | "rejected"; // Trạng thái tài khoản
+  avatar?: string; // Link avatar (Cloudinary)
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>; // So sánh mật khẩu
@@ -115,6 +116,7 @@ export interface IUser extends Document {
   factories_manage?: Types.ObjectId | IFactory;
   active: boolean;
   status: "pending" | "approved" | "rejected";
+  avatar?: string; // Link avatar (Cloudinary)
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>; // So sánh mật khẩu
