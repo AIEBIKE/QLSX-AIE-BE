@@ -89,6 +89,10 @@ const userSchema = new Schema<IUser>(
       enum: ["pending", "approved", "rejected"],
       default: "approved", // Backward compatibility - users hiện tại vẫn hoạt động
     },
+    // Link avatar (Cloudinary)
+    avatar: {
+      type: String,
+    },
   },
   {
     timestamps: true, // Tự động thêm createdAt, updatedAt

@@ -605,7 +605,7 @@ export const getProgress = async (
     const registrations = await DailyRegistration.find({
       productionOrderId: order._id,
     })
-      .populate("userId", "name code")
+      .populate("userId", "name code avatar")
       .populate("operationId", "name code processId");
 
     // Group theo công đoạn
@@ -620,12 +620,20 @@ export const getProgress = async (
         .reduce((sum, r) => sum + (r.actualQuantity || 0), 0);
 
       const workers = [
-        ...new Set(
+        ...new Map(
           processRegs.map((r) => {
-            const u = r.userId as { name?: string; code?: string };
-            return u?.name || u?.code;
+            const u = r.userId as unknown as {
+              _id?: any;
+              name?: string;
+              code?: string;
+              avatar?: string;
+            };
+            return [
+              u?._id?.toString(),
+              { name: u?.name || u?.code, avatar: u?.avatar },
+            ];
           }),
-        ),
+        ).values(),
       ];
 
       // Chi tiết registrations cho popup xem chi tiết
@@ -634,7 +642,7 @@ export const getProgress = async (
         const op = r.operationId as unknown as { name?: string; code?: string };
         return {
           _id: r._id,
-          worker: { name: u?.name, code: u?.code },
+          worker: { name: u?.name, code: u?.code, avatar: (u as any)?.avatar },
           operationId: (r.operationId as any)?._id || r.operationId,
           operation: {
             _id: (r.operationId as any)?._id,

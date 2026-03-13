@@ -207,6 +207,7 @@ export const login = async (
       roleCode: (account.roleId as any)?.code,
       profile: profile,
       factory: factory,
+      avatar: account.avatar,
     };
 
     // Trả về response
@@ -224,148 +225,7 @@ export const login = async (
 
 // ==================== ĐĂNG KÝ ====================
 
-/**
- * POST /api/auth/register
- * Đăng ký tài khoản mới (role: worker)
- */
-export const register = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const { name, code, email, password, role } = req.body;
-
-    // Validate input
-    if (!name || !password) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: "MISSING_FIELDS",
-          message: "Vui lòng nhập đầy đủ thông tin: tên, mật khẩu",
-        },
-      });
-      return;
-    }
-
-    // Kiểm tra mật khẩu tối thiểu 6 ký tự
-    if (password.length < 6) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: "WEAK_PASSWORD",
-          message: "Mật khẩu phải có ít nhất 6 ký tự",
-        },
-      });
-      return;
-    }
-
-    // Validate role
-    const roles = await Role.find();
-    let selectedRoleId = roles.find(r => r.code === "WORKER")?._id;
-    let selectedRoleCode = "WORKER";
-
-    if (role) {
-      const foundRole = roles.find(r => r.code === role || r.code.toLowerCase() === role.toLowerCase());
-      if (foundRole) {
-        selectedRoleId = foundRole._id;
-        selectedRoleCode = foundRole.code;
-      }
-    }
-
-    // Nếu không truyền code, tự động tạo mã
-    let employeeCode = code;
-    if (!employeeCode) {
-      employeeCode = await generateNextCode(selectedRoleCode);
-    } else {
-      // Kiểm tra code đã tồn tại
-      const existingAccount = await Account.findOne({ code: employeeCode });
-      if (existingAccount) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: "CODE_EXISTS",
-            message: "Mã nhân viên đã tồn tại trong hệ thống",
-          },
-        });
-        return;
-      }
-    }
-
-    // Kiểm tra email đã tồn tại (nếu có)
-    if (email) {
-      const existingEmail = await Account.findOne({ email });
-      if (existingEmail) {
-        res.status(400).json({
-          success: false,
-          error: {
-            code: "EMAIL_EXISTS",
-            message: "Email đã được sử dụng",
-          },
-        });
-        return;
-      }
-    }
-
-    // Xác định profile model
-    let profileModel: "Admin" | "Supervisor" | "Worker" | "FactoryManager" = "Worker";
-    let ModelToUse: any = Worker;
-    // Generate account ID first since it's required by profile
-    const accountId = new mongoose.Types.ObjectId();
-    const profileData: any = { accountId, name };
-
-    const roleCode = selectedRoleCode.toUpperCase();
-    if (roleCode === "ADMIN") {
-      profileModel = "Admin";
-      ModelToUse = Admin;
-    } else if (roleCode === "SUPERVISOR") {
-      profileModel = "Supervisor";
-      ModelToUse = Supervisor;
-    } else if (roleCode === "FAC_MANAGER") {
-      profileModel = "FactoryManager";
-      ModelToUse = FactoryManager;
-    }
-
-    // Tạo profile mới
-    const profile = await ModelToUse.create(profileData);
-
-    // Tạo account mới với status = pending (chờ duyệt)
-    const account = await Account.create({
-      _id: accountId,
-      code: employeeCode,
-      email,
-      password,
-      roleId: selectedRoleId,
-      profileId: profile._id,
-      profileModel: profileModel,
-      active: true,
-      status: "pending", // Chờ admin duyệt
-    });
-
-    // Gửi email thông báo (nếu có email)
-    if (email) {
-      await sendWelcomeEmail(email, name, employeeCode);
-    }
-
-    // Không tạo token - user cần được admin duyệt trước
-    res.status(201).json({
-      success: true,
-      message: "Đăng ký thành công! Tài khoản của bạn đang chờ admin duyệt.",
-      data: {
-        user: {
-          id: account._id,
-          name: profile.name,
-          code: account.code,
-          email: account.email,
-          roleId: account.roleId,
-          status: account.status,
-        },
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// Đăng ký (Removed) // [minhlaoma-13/03-08:45]
 
 // ==================== QUÊN MẬT KHẨU ====================
 
@@ -558,6 +418,7 @@ export const getMe = async (
         profile: profile,
         factory: factory,
         active: account.active,
+        avatar: account.avatar,
       },
     });
   } catch (error) {
@@ -678,6 +539,7 @@ export const updateProfile = async (
         roleId: account.roleId,
         roleCode: (account.roleId as any)?.code,
         profile: profile,
+        avatar: account.avatar,
       },
     });
   } catch (error) {
@@ -750,6 +612,73 @@ export const changePassword = async (
     res.json({
       success: true,
       message: "Đổi mật khẩu thành công",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/auth/avatar
+ * Upload avatar for the current user
+ */
+export const uploadAvatar = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        error: { code: "NO_FILE", message: "Vui lòng chọn ảnh để tải lên" },
+      });
+      return;
+    }
+
+    // Link ảnh từ Cloudinary (do multer-storage-cloudinary cung cấp)
+    const { path: avatarUrl } = req.file as any;
+
+    const account = await Account.findByIdAndUpdate(
+      req.user?._id,
+      { avatar: avatarUrl },
+      { new: true }
+    );
+
+    if (!account) {
+      res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Không tìm thấy tài khoản" },
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "Cập nhật ảnh đại diện thành công",
+      data: {
+        avatar: account.avatar,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/auth/users/pending
+ * Dummy handler for pending users (functionality disabled)
+ */
+export const getPendingUsers = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    res.json({
+      success: true,
+      data: [],
+      count: 0
     });
   } catch (error) {
     next(error);

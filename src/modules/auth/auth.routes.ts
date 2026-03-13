@@ -9,6 +9,7 @@ import { Router } from "express";
 import * as controller from "./auth.controller";
 import * as userController from "./user.controller";
 import { auth, adminOnly, adminOrSupervisor } from "../../shared/middleware";
+import { uploadAvatar } from "../../shared/middleware/upload.middleware";
 
 const router = Router();
 
@@ -18,8 +19,8 @@ const router = Router();
 // Đăng nhập
 router.post("/login", controller.login);
 
-// Đăng ký (tự đăng ký, chọn role, chờ duyệt)
-router.post("/register", controller.register);
+// Đăng ký (Disabled) // [minhlaoma-13/03-08:45]
+// router.post("/register", controller.register);
 
 // Lấy mã nhân viên tiếp theo (theo role)
 router.get("/next-code/:role", controller.getNextCode);
@@ -45,14 +46,17 @@ router.put("/profile", auth, controller.updateProfile);
 // Đổi mật khẩu
 router.put("/change-password", auth, controller.changePassword);
 
+// Upload avatar
+router.post("/avatar", auth, uploadAvatar, controller.uploadAvatar);
+
 // ==================== ADMIN ROUTES ====================
 // Chỉ admin được truy cập
 
 // Danh sách users
 router.get("/users", auth, adminOrSupervisor, userController.getAll);
 
-// Users đang chờ duyệt
-router.get("/users/pending", auth, adminOnly, userController.getPendingUsers);
+// Users đang chờ duyệt (Dummy handler to prevent fall-through and CastError)
+router.get("/users/pending", auth, adminOnly, controller.getPendingUsers);
 
 // Tổng hợp lương tất cả workers
 router.get(
@@ -73,11 +77,11 @@ router.get(
   userController.getWorkHistory,
 );
 
-// Duyệt tài khoản
-router.put("/users/:id/approve", auth, adminOnly, userController.approveUser);
+// Duyệt tài khoản (Disabled) // [minhlaoma-13/03-08:45]
+// router.put("/users/:id/approve", auth, adminOnly, userController.approveUser);
 
-// Từ chối tài khoản
-router.put("/users/:id/reject", auth, adminOnly, userController.rejectUser);
+// Từ chối tài khoản (Disabled) // [minhlaoma-13/03-08:45]
+// router.put("/users/:id/reject", auth, adminOnly, userController.rejectUser);
 
 // Tạo user mới (admin/fac_manager tạo)
 router.post("/users", auth, adminOrSupervisor, userController.create);

@@ -46,6 +46,9 @@ const accountSchema = new Schema<IAccount>(
             enum: ["pending", "approved", "rejected"],
             default: "approved",
         },
+        avatar: {
+            type: String,
+        },
     },
     {
         timestamps: true,
