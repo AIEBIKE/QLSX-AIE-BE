@@ -84,7 +84,11 @@ export const adminGetWorkers = async (
       filter.factoryId = factoryId;
     }
 
-    const reports = await DailyReport.find(filter).populate("userId", "name code");
+    const reports = await DailyReport.find(filter).populate({
+      path: "userId",
+      select: "code avatar profileId profileModel",
+      populate: { path: "profileId", select: "name" }
+    });
 
     res.json({ success: true, data: reports });
   } catch (error) {

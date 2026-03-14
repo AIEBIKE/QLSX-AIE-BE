@@ -4,7 +4,7 @@ import { IWorkLog } from "../../types";
 // LEGACY MODEL - Use DailyRegistration for new production flow
 const workLogSchema = new Schema<IWorkLog>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
     shiftId: { type: Schema.Types.ObjectId, ref: "Shift", required: true },
     processId: { type: Schema.Types.ObjectId, ref: "Process", required: true },
     operationId: {

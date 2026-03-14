@@ -56,7 +56,11 @@ export const getCurrentOrder = async (
       productionOrderId: activeOrder._id,
       date: { $gte: start, $lte: end },
       status: { $ne: "reassigned" },
-    }).populate("userId", "name code");
+    }).populate({
+      path: "userId",
+      select: "code avatar profileId profileModel",
+      populate: { path: "profileId", select: "name" }
+    });
 
     const operationsWithAvailability = operations.map((op) => {
       const opObj = op.toObject() as IOperation;
@@ -68,12 +72,13 @@ export const getCurrentOrder = async (
         currentWorkers: regs.length,
         isAvailable: regs.length < op.maxWorkers,
         registeredBy: regs.map((r) => {
-          const user = r.userId as unknown as {
-            _id: string;
-            name: string;
-            code: string;
-          } | null;
-          return { userId: user?._id || null, name: user?.name || '', code: user?.code || '' };
+          const user = r.userId as any;
+          const profile = user?.profileId as any;
+          return { 
+            userId: user?._id || null, 
+            name: profile?.name || user?.code || '', 
+            code: user?.code || '' 
+          };
         }),
       };
     });
@@ -426,10 +431,12 @@ export const remove = async (
       return;
     }
 
+    const roleCode = (req.user?.roleId as any)?.code;
+    const isManagerOrAdmin = ["ADMIN", "admin", "FAC_MANAGER", "supervisor", "SUPERVISOR"].includes(roleCode || "");
+
     if (
       registration.userId.toString() !== req.user?._id.toString() &&
-      (req.user?.roleId as any)?.code !== "ADMIN" &&
-      (req.user?.roleId as any)?.code !== "admin"
+      !isManagerOrAdmin
     ) {
       res.status(403).json({
         success: false,
@@ -478,7 +485,11 @@ export const adminGetAll = async (
     if (status) filter.status = status;
 
     const registrations = await DailyRegistration.find(filter)
-      .populate("userId", "name code")
+      .populate({
+        path: "userId",
+        select: "code avatar profileId profileModel",
+        populate: { path: "profileId", select: "name" }
+      })
       .populate("operationId", "name code")
       .populate("productionOrderId", "orderCode")
       .sort({ createdAt: -1 });
@@ -561,9 +572,17 @@ export const adminAdjust = async (
     await registration.save();
 
     const populated = await DailyRegistration.findById(registration._id)
-      .populate("userId", "name code")
+      .populate({
+        path: "userId",
+        select: "code avatar profileId profileModel",
+        populate: { path: "profileId", select: "name" }
+      })
       .populate("operationId", "name code")
-      .populate("adjustedBy", "name");
+      .populate({
+        path: "adjustedBy",
+        select: "code profileId profileModel",
+        populate: { path: "profileId", select: "name" }
+      });
 
     res.json({ success: true, data: populated });
   } catch (error) {
@@ -633,7 +652,11 @@ export const adminReassign = async (
     });
 
     const populated = await DailyRegistration.findById(registration._id)
-      .populate("userId", "name code")
+      .populate({
+        path: "userId",
+        select: "code avatar profileId profileModel",
+        populate: { path: "profileId", select: "name" }
+      })
       .populate("operationId", "name code");
 
     res.status(201).json({ success: true, data: populated });
@@ -812,7 +835,11 @@ export const getShortageCount = async (
       status: "completed",
       $expr: { $lt: ["$actualQuantity", "$expectedQuantity"] },
     })
-      .populate("userId", "name code")
+      .populate({
+        path: "userId",
+        select: "code avatar profileId profileModel",
+        populate: { path: "profileId", select: "name" }
+      })
       .populate("operationId", "name code")
       .lean();
 

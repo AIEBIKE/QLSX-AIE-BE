@@ -91,7 +91,7 @@ const productionOrderSchema = new Schema<IProductionOrder>(
     // Người tạo lệnh sản xuất
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Account",
       required: true,
     },
 
@@ -136,7 +136,7 @@ const productionOrderSchema = new Schema<IProductionOrder>(
         checkedAt: { type: Date },
 
         // Người kiểm tra
-        checkedBy: { type: Schema.Types.ObjectId, ref: "User" },
+        checkedBy: { type: Schema.Types.ObjectId, ref: "Account" },
 
         // Có thể hoàn thành không
         canComplete: { type: Boolean },

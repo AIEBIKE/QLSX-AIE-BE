@@ -26,7 +26,7 @@ const passwordResetTokenSchema = new Schema<IPasswordResetToken>(
     // Liên kết đến user
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Account",
       required: true,
     },
 

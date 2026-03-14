@@ -18,7 +18,7 @@ const dailyReportSchema = new Schema<IDailyReport>(
     // ==================== LIÊN KẾT ====================
 
     // Công nhân
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
     shiftId: { type: Schema.Types.ObjectId, ref: "Shift", required: true },
     factoryId: { type: Schema.Types.ObjectId, ref: "Factory", required: true },
 

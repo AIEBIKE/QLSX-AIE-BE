@@ -7,7 +7,7 @@
 
 import { Router } from "express";
 import * as controller from "./auth.controller";
-import * as userController from "./user.controller";
+import * as accountController from "./account.controller";
 import { auth, adminOnly, adminOrSupervisor } from "../../shared/middleware";
 import { uploadAvatar } from "../../shared/middleware/upload.middleware";
 
@@ -53,43 +53,43 @@ router.post("/avatar", auth, uploadAvatar, controller.uploadAvatar);
 // Chỉ admin được truy cập
 
 // Danh sách users
-router.get("/users", auth, adminOrSupervisor, userController.getAll);
+router.get("/users", auth, adminOrSupervisor, accountController.getAll);
 
 // Users đang chờ duyệt (Dummy handler to prevent fall-through and CastError)
-router.get("/users/pending", auth, adminOnly, controller.getPendingUsers);
+router.get("/users/pending", auth, adminOnly, controller.getPendingAccounts);
 
 // Tổng hợp lương tất cả workers
 router.get(
   "/users/salary-summary",
   auth,
   adminOnly,
-  userController.getAllWorkersSalary,
+  accountController.getAllWorkersSalary,
 );
 
 // Chi tiết user
-router.get("/users/:id", auth, adminOrSupervisor, userController.getById);
+router.get("/users/:id", auth, adminOrSupervisor, accountController.getById);
 
 // Lịch sử làm việc của user
 router.get(
   "/users/:id/work-history",
   auth,
   adminOrSupervisor,
-  userController.getWorkHistory,
+  accountController.getWorkHistory,
 );
 
 // Duyệt tài khoản (Disabled) // [minhlaoma-13/03-08:45]
-// router.put("/users/:id/approve", auth, adminOnly, userController.approveUser);
+// router.put("/users/:id/approve", auth, adminOnly, accountController.approveUser);
 
 // Từ chối tài khoản (Disabled) // [minhlaoma-13/03-08:45]
-// router.put("/users/:id/reject", auth, adminOnly, userController.rejectUser);
+// router.put("/users/:id/reject", auth, adminOnly, accountController.rejectUser);
 
 // Tạo user mới (admin/fac_manager tạo)
-router.post("/users", auth, adminOrSupervisor, userController.create);
+router.post("/users", auth, adminOrSupervisor, accountController.create);
 
 // Cập nhật user
-router.put("/users/:id", auth, adminOrSupervisor, userController.update);
+router.put("/users/:id", auth, adminOrSupervisor, accountController.update);
 
 // Xóa user (soft delete)
-router.delete("/users/:id", auth, adminOrSupervisor, userController.remove);
+router.delete("/users/:id", auth, adminOrSupervisor, accountController.remove);
 
 export default router;
