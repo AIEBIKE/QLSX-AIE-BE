@@ -20,7 +20,7 @@ const shiftSchema = new Schema<IShift>(
     // Công nhân thực hiện ca này
     userId: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Account",
       required: true,
     },
 

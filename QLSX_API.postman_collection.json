@@ -208,6 +208,217 @@
               "path": ["auth", "forgot-password"]
             }
           }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "avatar"]
+            }
+          }
+        },
+        {
+          "name": "Get Next Code",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/next-code/:role",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "next-code", ":role"],
+              "variable": [{ "key": "role", "value": "worker" }]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"RESET_TOKEN\",\n  \"newPassword\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👷 Worker Endpoints",
+      "item": [
+        {
+          "name": "Login Worker",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.token) {",
+                  "        pm.collectionVariables.set('token', jsonData.data.token);",
+                  "        console.log('Worker Token saved!');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CN001\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Upload Avatar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/avatar",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "avatar"]
+            }
+          }
+        },
+        {
+          "name": "Start Shift",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/shifts/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["shifts", "start"]
+            }
+          }
+        },
+        {
+          "name": "Get Current Shift",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/shifts/current",
+              "host": ["{{baseUrl}}"],
+              "path": ["shifts", "current"]
+            }
+          }
+        },
+        {
+          "name": "End Shift",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/shifts/end",
+              "host": ["{{baseUrl}}"],
+              "path": ["shifts", "end"]
+            }
+          }
+        },
+        {
+          "name": "Get Today Registrations",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/registrations/today",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", "today"]
+            }
+          }
+        },
+        {
+          "name": "Create Registration",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operationId\": \"OP_ID\",\n  \"expectedQuantity\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/registrations",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations"]
+            }
+          }
+        },
+        {
+          "name": "Complete Registration",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actualQuantity\": 10,\n  \"note\": \"Hoàn thành tốt\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/registrations/:id/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["registrations", ":id", "complete"],
+              "variable": [{ "key": "id", "value": "REG_ID" }]
+            }
+          }
         }
       ]
     },
@@ -265,6 +476,30 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Updated Worker Name\",\n  \"factory_belong_to\": \"NEW_FACTORY_ID\"\n}"
             },
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":id"],
+              "variable": [{ "key": "id", "value": "USER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", ":id"],
+              "variable": [{ "key": "id", "value": "USER_ID" }]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
             "url": {
               "raw": "{{baseUrl}}/auth/users/:id",
               "host": ["{{baseUrl}}"],
@@ -428,6 +663,17 @@
     {
       "name": "📋 Production Orders (FacManager)",
       "item": [
+        {
+          "name": "Get Active Orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/production-orders/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["production-orders", "active"]
+            }
+          }
+        },
         {
           "name": "Get All Orders",
           "request": {

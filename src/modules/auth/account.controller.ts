@@ -124,6 +124,7 @@ export const getAll = async (
         citizenId: profile?.citizenId,
         address: profile?.address,
         phoneNumber: profile?.phoneNumber,
+        avatar: acc.avatar,
         factoryId: profile?.factoryId || profile?.factory_belong_to,
       };
     });
@@ -178,6 +179,7 @@ export const getById = async (
       dateOfBirth: profile?.dateOfBirth,
       citizenId: profile?.citizenId,
       address: profile?.address,
+      avatar: account.avatar,
       factoryId: profile?.factoryId || profile?.factory_belong_to,
       factories_manage: profile?.factory_belong_to,
       createdAt: account.createdAt,
@@ -394,7 +396,7 @@ export const update = async (
       const oldProfileData = await OldModel.findById(oldProfileId);
 
       let baseData = {
-        name: oldProfileData?.name || name || "User",
+        name: oldProfileData?.name || name || "Account",
         dateOfBirth: oldProfileData?.dateOfBirth || dateOfBirth,
         citizenId: oldProfileData?.citizenId || citizenId,
         address: oldProfileData?.address || address,
@@ -704,7 +706,11 @@ export const getAllWorkersSalary = async (
       date: { $gte: start, $lte: end },
       status: "completed",
     })
-      .populate("userId", "code") // Chỉ lấy code, name từ map bên dưới
+      .populate({
+        path: "userId",
+        select: "code profileId profileModel",
+        populate: { path: "profileId", select: "name" }
+      }) // Lấy code, name từ profile
       .lean();
 
     // Aggregate by worker

@@ -10,7 +10,7 @@ const settingsSchema = new Schema<ISettings>(
     key: { type: String, required: true, unique: true },
     value: { type: Schema.Types.Mixed, required: true },
     description: { type: String, default: "" },
-    updatedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    updatedBy: { type: Schema.Types.ObjectId, ref: "Account" },
   },
   { timestamps: true, versionKey: false },
 );

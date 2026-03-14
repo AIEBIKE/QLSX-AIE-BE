@@ -18,7 +18,7 @@ const dailyRegistrationSchema = new Schema<IDailyRegistration>(
     // ==================== LIÊN KẾT ====================
 
     // Công nhân thực hiện
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: Schema.Types.ObjectId, ref: "Account", required: true },
 
     // Ca làm việc
     shiftId: { type: Schema.Types.ObjectId, ref: "Shift", required: true },
@@ -94,7 +94,7 @@ const dailyRegistrationSchema = new Schema<IDailyRegistration>(
     // ==================== ĐIỀU CHỈNH ====================
 
     // Người điều chỉnh (giám sát)
-    adjustedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    adjustedBy: { type: Schema.Types.ObjectId, ref: "Account" },
 
     // Số lượng kỳ vọng sau điều chỉnh
     adjustedExpectedQty: { type: Number },
@@ -119,8 +119,8 @@ const dailyRegistrationSchema = new Schema<IDailyRegistration>(
     isReplacement: { type: Boolean, default: false },
 
     // Thay thế cho công nhân nào
-    reassignedFrom: { type: Schema.Types.ObjectId, ref: "User" },
-    replacesUserId: { type: Schema.Types.ObjectId, ref: "User" }, // Legacy
+    reassignedFrom: { type: Schema.Types.ObjectId, ref: "Account" },
+    replacesUserId: { type: Schema.Types.ObjectId, ref: "Account" }, // Legacy
 
     // Lý do thay thế
     replacementReason: { type: String, default: "" },

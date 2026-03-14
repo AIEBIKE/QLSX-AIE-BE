@@ -669,7 +669,7 @@ export const uploadAvatar = async (
  * GET /api/auth/users/pending
  * Dummy handler for pending users (functionality disabled)
  */
-export const getPendingUsers = async (
+export const getPendingAccounts = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,

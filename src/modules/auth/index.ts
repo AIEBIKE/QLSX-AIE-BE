@@ -1,4 +1,4 @@
-import User from "./user.model";
+import Account from "./account.model";
 import authRoutes from "./auth.routes";
 
-export { User, authRoutes };
+export { Account, authRoutes };
